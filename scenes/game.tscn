@@ -14,6 +14,7 @@ size = Vector2(64, 64)
 [node name="Game" type="Node2D"]
 
 [node name="Player" type="CharacterBody2D" parent="."]
+collision_layer = 2
 script = ExtResource("1_uwrxv")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player"]
@@ -26,6 +27,9 @@ shape = SubResource("RectangleShape2D_yqjtg")
 zoom = Vector2(1.5, 1.5)
 position_smoothing_enabled = true
 rotation_smoothing_enabled = true
+
+[node name="Muzzle" type="Marker2D" parent="Player"]
+position = Vector2(16, 0)
 
 [node name="Walls" type="Node2D" parent="."]
 
