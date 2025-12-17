@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3 uid="uid://r5mom464fe8l"]
+[gd_scene load_steps=7 format=3 uid="uid://r5mom464fe8l"]
 
 [ext_resource type="Script" uid="uid://cf1pjhdre8qxw" path="res://scenes/player.gd" id="1_uwrxv"]
 [ext_resource type="PackedScene" uid="uid://dc34qk1tb0qd4" path="res://scenes/wall.tscn" id="2_yqjtg"]
+[ext_resource type="PackedScene" uid="uid://dq3m3ar72vt3s" path="res://scenes/minion.tscn" id="3_lnu2h"]
 
 [sub_resource type="Gradient" id="Gradient_8cj0n"]
 
@@ -13,7 +14,7 @@ size = Vector2(64, 64)
 
 [node name="Game" type="Node2D"]
 
-[node name="Player" type="CharacterBody2D" parent="."]
+[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
 collision_layer = 2
 script = ExtResource("1_uwrxv")
 
@@ -58,3 +59,6 @@ offset_top = -1000.0
 offset_right = 1000.0
 offset_bottom = 1000.0
 color = Color(0.42133397, 0.44611454, 0.43636146, 1)
+
+[node name="Minion" parent="." instance=ExtResource("3_lnu2h")]
+position = Vector2(300, 0)

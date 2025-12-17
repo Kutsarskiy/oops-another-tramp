@@ -23,6 +23,8 @@ func _physics_process(delta: float) -> void:
 
 func _shoot() -> void:
 	var b = BulletScene.instantiate()
+	b.setup_bullet(false) # пуля игрока (стены + враги)
+
 	b.global_position = muzzle.global_position
 
 	var v := get_global_mouse_position() - muzzle.global_position
@@ -33,3 +35,16 @@ func _shoot() -> void:
 
 	# добавляем пулю на уровень, а не внутрь Player
 	get_parent().add_child(b)
+	
+@export var max_hp: int = 5
+var hp: int
+
+func _ready() -> void:
+	hp = max_hp
+	add_to_group("player")
+
+func take_damage(amount: int) -> void:
+	hp -= amount
+	print("Player HP:", hp)
+	if hp <= 0:
+		get_tree().reload_current_scene()
