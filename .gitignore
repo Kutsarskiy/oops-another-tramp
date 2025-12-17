@@ -1,0 +1,19 @@
+# Godot 4
+.godot/
+.import/
+*.import
+export.cfg
+export_presets.cfg
+
+# Mono/C#
+.mono/
+data_*/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log

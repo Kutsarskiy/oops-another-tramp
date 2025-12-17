@@ -1,0 +1,56 @@
+[gd_scene load_steps=6 format=3 uid="uid://r5mom464fe8l"]
+
+[ext_resource type="Script" uid="uid://cf1pjhdre8qxw" path="res://scenes/player.gd" id="1_uwrxv"]
+[ext_resource type="PackedScene" uid="uid://dc34qk1tb0qd4" path="res://scenes/wall.tscn" id="2_yqjtg"]
+
+[sub_resource type="Gradient" id="Gradient_8cj0n"]
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_uwrxv"]
+gradient = SubResource("Gradient_8cj0n")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_yqjtg"]
+size = Vector2(64, 64)
+
+[node name="Game" type="Node2D"]
+
+[node name="Player" type="CharacterBody2D" parent="."]
+script = ExtResource("1_uwrxv")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
+texture = SubResource("GradientTexture2D_uwrxv")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_yqjtg")
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+zoom = Vector2(1.5, 1.5)
+position_smoothing_enabled = true
+rotation_smoothing_enabled = true
+
+[node name="Walls" type="Node2D" parent="."]
+
+[node name="WallTop" parent="Walls" instance=ExtResource("2_yqjtg")]
+position = Vector2(0, -1040)
+wall_size = Vector2(2160, 80)
+
+[node name="WallBottom" parent="Walls" instance=ExtResource("2_yqjtg")]
+position = Vector2(0, 1040)
+wall_size = Vector2(2160, 80)
+
+[node name="WallLeft" parent="Walls" instance=ExtResource("2_yqjtg")]
+position = Vector2(-1040, 0)
+wall_size = Vector2(80, 2160)
+
+[node name="WallRight" parent="Walls" instance=ExtResource("2_yqjtg")]
+position = Vector2(1040, 0)
+wall_size = Vector2(80, 2160)
+
+[node name="Background" type="CanvasLayer" parent="."]
+layer = -10
+
+[node name="ColorRect" type="ColorRect" parent="Background"]
+offset_left = -1000.0
+offset_top = -1000.0
+offset_right = 1000.0
+offset_bottom = 1000.0
+color = Color(0.42133397, 0.44611454, 0.43636146, 1)
