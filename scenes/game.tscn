@@ -1,8 +1,12 @@
 [gd_scene format=3 uid="uid://r5mom464fe8l"]
 
 [ext_resource type="Script" uid="uid://cf1pjhdre8qxw" path="res://scenes/player.gd" id="1_uwrxv"]
+[ext_resource type="Script" uid="uid://buwab80k2b1uu" path="res://scripts/weapons/weapon_controller.gd" id="2_lbhrr"]
 [ext_resource type="PackedScene" uid="uid://dc34qk1tb0qd4" path="res://scenes/wall.tscn" id="2_yqjtg"]
 [ext_resource type="PackedScene" uid="uid://dq3m3ar72vt3s" path="res://scenes/minion.tscn" id="3_lnu2h"]
+[ext_resource type="Script" uid="uid://dhcfmosatkft4" path="res://scripts/ui/weapon_hud.gd" id="5_iywne"]
+[ext_resource type="Script" uid="uid://8jvcovjqcbga" path="res://scripts/ui/pickup_hint_hud.gd" id="6_p57ef"]
+[ext_resource type="PackedScene" uid="uid://cnee866hbv5oq" path="res://scenes/weapons/weapon_pickup.tscn" id="7_u5sy4"]
 
 [sub_resource type="Gradient" id="Gradient_8cj0n"]
 
@@ -31,6 +35,9 @@ rotation_smoothing_enabled = true
 
 [node name="Muzzle" type="Marker2D" parent="Player" unique_id=1660981308]
 position = Vector2(16, 0)
+
+[node name="WeaponController" type="Node" parent="Player" unique_id=2124599871]
+script = ExtResource("2_lbhrr")
 
 [node name="Walls" type="Node2D" parent="." unique_id=1646541533]
 
@@ -67,3 +74,24 @@ color = Color(0.42133397, 0.44611454, 0.43636146, 1)
 
 [node name="Minion" parent="." unique_id=1783753798 instance=ExtResource("3_lnu2h")]
 position = Vector2(300, 0)
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=60715672]
+
+[node name="WeaponHUD" type="Label" parent="UI" unique_id=262308976]
+offset_right = 40.0
+offset_bottom = 23.0
+script = ExtResource("5_iywne")
+
+[node name="PickupHintHUD" type="Label" parent="UI" unique_id=431496801]
+offset_right = 40.0
+offset_bottom = 23.0
+script = ExtResource("6_p57ef")
+
+[node name="FinalOfferPickup" parent="." unique_id=1408864703 instance=ExtResource("7_u5sy4")]
+position = Vector2(0, -160)
+create_weapon_on_ready = true
+
+[node name="SecondAmendmentPickup" parent="." unique_id=1203065452 instance=ExtResource("7_u5sy4")]
+position = Vector2(0, 160)
+debug_weapon_id = "the_second_amendment"
+create_weapon_on_ready = true

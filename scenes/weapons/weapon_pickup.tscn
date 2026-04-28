@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://cnee866hbv5oq"]
+
+[ext_resource type="Script" uid="uid://y37thvkmpw5d" path="res://scripts/weapons/weapon_pickup.gd" id="1_cr05a"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_cr05a"]
+radius = 44.0
+
+[node name="WeaponPickup" type="Area2D" unique_id=1408864703]
+script = ExtResource("1_cr05a")
+create_weapon_on_ready = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=742716431]
+shape = SubResource("CircleShape2D_cr05a")

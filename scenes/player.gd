@@ -2,17 +2,18 @@ extends CharacterBody2D
 
 # --- Базовые параметры ---
 @export var move_speed: float = 200.0
-@export var fire_rate: float = 10.0 # выстрелов в секунду
+@export var recoil_decay_speed: float = 1200.0
 
 # --- Трамп-формы ---
 # scale — размер активного Трампа
 # speed — скорость активного Трампа
+# recoil_multiplier — насколько сильно эту форму отбрасывает оружием
 var trump_forms: Array[Dictionary] = [
-	{"scale": 1.0, "speed": 200.0},
-	{"scale": 0.8, "speed": 220.0},
-	{"scale": 0.6, "speed": 240.0},
-	{"scale": 0.4, "speed": 260.0},
-	{"scale": 0.2, "speed": 290.0}
+	{"scale": 1.0, "speed": 200.0, "recoil_multiplier": 0.6},
+	{"scale": 0.8, "speed": 220.0, "recoil_multiplier": 0.8},
+	{"scale": 0.6, "speed": 240.0, "recoil_multiplier": 1.0},
+	{"scale": 0.4, "speed": 260.0, "recoil_multiplier": 1.3},
+	{"scale": 0.2, "speed": 290.0, "recoil_multiplier": 1.7}
 ]
 
 var current_form_index: int = 0
@@ -43,15 +44,15 @@ var _shoot_lock_left: float = 0.0
 var _ghosts: Array[Polygon2D] = []
 var _position_history: Array[Vector2] = []
 
-# --- Стрельба ---
+# --- Оружие ---
 @export var muzzle_distance: float = 36.0
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 @onready var muzzle: Marker2D = $Muzzle
+@onready var weapon_controller: WeaponController = get_node_or_null("WeaponController") as WeaponController
 
-var _shoot_cd: float = 0.0
-var BulletScene: PackedScene = preload("res://scenes/bullet.tscn")
+var _recoil_velocity: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -60,6 +61,12 @@ func _ready() -> void:
 
 	_apply_current_form()
 	_reset_tail_history()
+
+	if weapon_controller != null:
+		weapon_controller.initialize(self)
+		weapon_controller.on_trump_form_changed(_get_current_scale())
+	else:
+		push_warning("Player has no WeaponController child. Shooting will not work.")
 
 	# Важно: хвост создаём отложенно, когда сцена уже полностью собрана.
 	call_deferred("_create_trump_tail")
@@ -78,43 +85,19 @@ func _physics_process(delta: float) -> void:
 	if InputMap.has_action("dash") and Input.is_action_just_pressed("dash"):
 		_try_start_dash()
 
-	# --- Movement / Dash ---
+	# --- Movement / Dash / Recoil ---
 	if _is_dashing():
 		velocity = _dash_direction * dash_speed
 	else:
 		var dir: Vector2 = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-		velocity = dir * move_speed
+		velocity = dir * move_speed + _recoil_velocity
 
 	move_and_slide()
+	_update_recoil(delta)
 
 	# --- Хвост ---
 	_record_position()
 	_update_trump_tail(delta)
-
-	# --- Shooting ---
-	_shoot_cd = maxf(_shoot_cd - delta, 0.0)
-
-	if not _is_dashing() and _shoot_lock_left <= 0.0 and Input.is_action_pressed("shoot") and _shoot_cd <= 0.0:
-		_shoot_cd = 1.0 / fire_rate
-		_shoot()
-
-
-func _shoot() -> void:
-	var shoot_vector: Vector2 = get_global_mouse_position() - global_position
-
-	if shoot_vector.length_squared() < 0.0001:
-		shoot_vector = Vector2.RIGHT
-
-	var shoot_direction: Vector2 = shoot_vector.normalized()
-	var current_scale: float = _get_current_scale()
-
-	var bullet = BulletScene.instantiate()
-	bullet.setup_bullet(false) # пуля игрока
-
-	bullet.global_position = global_position + shoot_direction * muzzle_distance * current_scale
-	bullet.direction = shoot_direction
-
-	get_parent().add_child(bullet)
 
 
 func take_damage(_amount: int) -> void:
@@ -149,6 +132,9 @@ func _lose_current_form() -> void:
 	_apply_current_form()
 	_rebuild_trump_tail()
 
+	if weapon_controller != null:
+		weapon_controller.on_trump_form_changed(_get_current_scale())
+
 	_debug_print_state("FORM LOST")
 
 
@@ -179,6 +165,80 @@ func _apply_current_form() -> void:
 
 func _get_current_scale() -> float:
 	return float(trump_forms[current_form_index]["scale"])
+
+
+func get_current_trump_scale() -> float:
+	return _get_current_scale()
+
+
+func _get_current_recoil_multiplier() -> float:
+	var form: Dictionary = trump_forms[current_form_index]
+
+	if not form.has("recoil_multiplier"):
+		return 1.0
+
+	return float(form["recoil_multiplier"])
+
+
+func can_weapon_fire() -> bool:
+	if _is_game_over:
+		return false
+
+	if _is_dashing():
+		return false
+
+	if _shoot_lock_left > 0.0:
+		return false
+
+	return true
+
+
+func can_weapon_reload() -> bool:
+	if _is_game_over:
+		return false
+
+	if _is_dashing():
+		return false
+
+	return true
+
+
+func get_weapon_muzzle_global_position(shoot_direction: Vector2) -> Vector2:
+	var direction := shoot_direction
+
+	if direction.length_squared() < 0.0001:
+		direction = Vector2.RIGHT
+
+	return global_position + direction.normalized() * muzzle_distance * _get_current_scale()
+
+
+func get_bullet_spawn_parent() -> Node:
+	var parent_node := get_parent()
+
+	if parent_node != null:
+		return parent_node
+
+	return self
+
+
+func apply_weapon_recoil(shoot_direction: Vector2, recoil_force: float) -> void:
+	if recoil_force <= 0.0:
+		return
+
+	var direction := shoot_direction
+
+	if direction.length_squared() < 0.0001:
+		direction = Vector2.RIGHT
+
+	_recoil_velocity -= direction.normalized() * recoil_force * _get_current_recoil_multiplier()
+
+
+func _update_recoil(delta: float) -> void:
+	if _recoil_velocity.length_squared() <= 0.0001:
+		_recoil_velocity = Vector2.ZERO
+		return
+
+	_recoil_velocity = _recoil_velocity.move_toward(Vector2.ZERO, recoil_decay_speed * delta)
 
 
 func _is_invulnerable() -> bool:
@@ -354,8 +414,13 @@ func _debug_print_state(reason: String) -> void:
 	print("Current form index:", current_form_index)
 	print("Current scale:", _get_current_scale())
 	print("Current speed:", move_speed)
+	print("Current recoil multiplier:", _get_current_recoil_multiplier())
 	print("Ghosts:", _ghosts.size())
 	print("Invulnerability:", _invulnerability_left)
 	print("Dash cooldown:", _dash_cooldown_left)
 	print("Dash time left:", _dash_time_left)
 	print("Shoot lock:", _shoot_lock_left)
+
+	if weapon_controller != null:
+		print("Weapon:", weapon_controller.get_current_weapon_name())
+		print("Ammo:", weapon_controller.get_current_ammo_text())
