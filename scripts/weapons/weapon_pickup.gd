@@ -15,12 +15,12 @@ var _collision_shape: CollisionShape2D = null
 
 
 func _ready() -> void:
+	add_to_group("pickup")
 	add_to_group("weapon_pickup")
 
 	monitoring = true
 	monitorable = true
 
-	# Игрок находится на collision layer 2, поэтому маска = 1 << 1.
 	collision_layer = 0
 	collision_mask = 1 << 1
 
@@ -70,7 +70,20 @@ func get_pickup_hint_text() -> String:
 	if weapon_instance.data == null:
 		return ""
 
-	return "[E] Pick up %s" % weapon_instance.data.display_name
+	var weapon_controller := _get_player_weapon_controller()
+
+	if weapon_controller != null and weapon_controller.has_method("get_pickup_hint_for_weapon"):
+		return str(weapon_controller.call("get_pickup_hint_for_weapon", weapon_instance))
+
+	var description: String = weapon_instance.data.description
+
+	if description.is_empty():
+		return "[E] Pick up %s" % weapon_instance.data.display_name
+
+	return "[E] Pick up %s\n%s" % [
+		weapon_instance.data.display_name,
+		description
+	]
 
 
 func get_pickup_priority_position() -> Vector2:
@@ -84,7 +97,7 @@ func _try_pick_up() -> void:
 	if weapon_instance == null:
 		return
 
-	var weapon_controller := _player_in_range.get_node_or_null("WeaponController")
+	var weapon_controller := _get_player_weapon_controller()
 
 	if weapon_controller == null:
 		return
@@ -92,12 +105,23 @@ func _try_pick_up() -> void:
 	if not weapon_controller.has_method("pickup_weapon_instance"):
 		return
 
-	var picked_up: bool = bool(weapon_controller.call("pickup_weapon_instance", weapon_instance))
+	var picked_up: bool = bool(weapon_controller.call(
+		"pickup_weapon_instance",
+		weapon_instance,
+		global_position
+	))
 
 	if picked_up:
 		print("Picked up:", weapon_instance.data.display_name)
 		weapon_instance = null
 		queue_free()
+
+
+func _get_player_weapon_controller() -> Node:
+	if _player_in_range == null:
+		return null
+
+	return _player_in_range.get_node_or_null("WeaponController")
 
 
 func _on_body_entered(body: Node) -> void:

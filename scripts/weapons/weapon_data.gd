@@ -7,6 +7,8 @@ class_name WeaponData
 @export var weapon_type: String = "Sidearm"
 @export var rarity: String = "Common"
 
+@export_enum("sidearm", "shotgun", "rifle", "heavy", "none") var ammo_type: String = "sidearm"
+
 @export_enum("semi_auto", "automatic") var trigger_mode: String = "semi_auto"
 @export var fire_rate: float = 5.0
 
@@ -20,6 +22,7 @@ class_name WeaponData
 
 @export var magazine_size: int = 12
 @export var reserve_ammo: int = 0
+@export var max_reserve_ammo: int = 0
 @export var infinite_reserve_ammo: bool = false
 @export var reload_time: float = 0.8
 
@@ -49,6 +52,7 @@ static func create_the_negotiator():
 	data.description = "When diplomacy fails, keep negotiating."
 	data.weapon_type = "Sidearm"
 	data.rarity = "Starter"
+	data.ammo_type = "sidearm"
 
 	data.trigger_mode = "semi_auto"
 	data.fire_rate = 5.0
@@ -63,6 +67,7 @@ static func create_the_negotiator():
 
 	data.magazine_size = 12
 	data.reserve_ammo = 0
+	data.max_reserve_ammo = 0
 	data.infinite_reserve_ammo = true
 	data.reload_time = 0.8
 
@@ -85,6 +90,7 @@ static func create_the_final_offer():
 	data.description = "Usually comes with eight pellets."
 	data.weapon_type = "Shotgun"
 	data.rarity = "Uncommon"
+	data.ammo_type = "shotgun"
 
 	data.trigger_mode = "semi_auto"
 	data.fire_rate = 1.15
@@ -99,6 +105,7 @@ static func create_the_final_offer():
 
 	data.magazine_size = 8
 	data.reserve_ammo = 24
+	data.max_reserve_ammo = 24
 	data.infinite_reserve_ammo = false
 	data.reload_time = 1.35
 
@@ -121,6 +128,7 @@ static func create_the_second_amendment():
 	data.description = "A constitutional argument at 900 rounds per minute."
 	data.weapon_type = "Rifle"
 	data.rarity = "Rare"
+	data.ammo_type = "rifle"
 
 	data.trigger_mode = "automatic"
 	data.fire_rate = 15.0
@@ -135,6 +143,7 @@ static func create_the_second_amendment():
 
 	data.magazine_size = 30
 	data.reserve_ammo = 90
+	data.max_reserve_ammo = 90
 	data.infinite_reserve_ammo = false
 	data.reload_time = 1.45
 

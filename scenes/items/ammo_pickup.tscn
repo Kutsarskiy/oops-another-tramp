@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://bg8u27pltsphw"]
+
+[ext_resource type="Script" uid="uid://74ks3nmllm48" path="res://scripts/items/ammo_pickup.gd" id="1_783f2"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2dbgo"]
+radius = 44.0
+
+[node name="AmmoPickup" type="Area2D" unique_id=369494240]
+script = ExtResource("1_783f2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1301191309]
+shape = SubResource("CircleShape2D_2dbgo")

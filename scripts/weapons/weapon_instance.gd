@@ -66,6 +66,51 @@ func reload_to_full() -> void:
 	reserve_ammo -= loaded_ammo
 
 
+func get_max_reserve_ammo() -> int:
+	if data == null:
+		return 0
+
+	if data.max_reserve_ammo > 0:
+		return data.max_reserve_ammo
+
+	return maxi(data.reserve_ammo, 0)
+
+
+func add_reserve_ammo(amount: int) -> int:
+	if data == null:
+		return 0
+
+	if data.infinite_reserve_ammo:
+		return 0
+
+	var max_reserve: int = get_max_reserve_ammo()
+
+	if max_reserve <= 0:
+		return 0
+
+	var safe_amount: int = maxi(amount, 0)
+
+	if safe_amount <= 0:
+		return 0
+
+	var old_reserve: int = reserve_ammo
+	reserve_ammo = mini(reserve_ammo + safe_amount, max_reserve)
+
+	return reserve_ammo - old_reserve
+
+
+func add_reserve_ammo_by_fraction(fraction: float) -> int:
+	var max_reserve: int = get_max_reserve_ammo()
+
+	if max_reserve <= 0:
+		return 0
+
+	var amount: int = int(ceil(float(max_reserve) * fraction))
+	amount = maxi(amount, 1)
+
+	return add_reserve_ammo(amount)
+
+
 func get_ammo_text() -> String:
 	if data == null:
 		return "-"

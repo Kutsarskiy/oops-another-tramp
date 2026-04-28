@@ -6,7 +6,9 @@
 [ext_resource type="PackedScene" uid="uid://dq3m3ar72vt3s" path="res://scenes/minion.tscn" id="3_lnu2h"]
 [ext_resource type="Script" uid="uid://dhcfmosatkft4" path="res://scripts/ui/weapon_hud.gd" id="5_iywne"]
 [ext_resource type="Script" uid="uid://8jvcovjqcbga" path="res://scripts/ui/pickup_hint_hud.gd" id="6_p57ef"]
+[ext_resource type="Script" uid="uid://cjck01aatw0wo" path="res://scripts/ui/action_message_hud.gd" id="7_0tnpc"]
 [ext_resource type="PackedScene" uid="uid://cnee866hbv5oq" path="res://scenes/weapons/weapon_pickup.tscn" id="7_u5sy4"]
+[ext_resource type="PackedScene" uid="uid://bg8u27pltsphw" path="res://scenes/items/ammo_pickup.tscn" id="8_gee14"]
 
 [sub_resource type="Gradient" id="Gradient_8cj0n"]
 
@@ -38,6 +40,7 @@ position = Vector2(16, 0)
 
 [node name="WeaponController" type="Node" parent="Player" unique_id=2124599871]
 script = ExtResource("2_lbhrr")
+max_inventory_slots = 9
 
 [node name="Walls" type="Node2D" parent="." unique_id=1646541533]
 
@@ -87,11 +90,29 @@ offset_right = 40.0
 offset_bottom = 23.0
 script = ExtResource("6_p57ef")
 
+[node name="ActionMessageHUD" type="Label" parent="UI" unique_id=536491487]
+offset_right = 40.0
+offset_bottom = 23.0
+script = ExtResource("7_0tnpc")
+
 [node name="FinalOfferPickup" parent="." unique_id=1408864703 instance=ExtResource("7_u5sy4")]
 position = Vector2(0, -160)
-create_weapon_on_ready = true
 
 [node name="SecondAmendmentPickup" parent="." unique_id=1203065452 instance=ExtResource("7_u5sy4")]
 position = Vector2(0, 160)
 debug_weapon_id = "the_second_amendment"
-create_weapon_on_ready = true
+
+[node name="UniversalAmmoPickup" parent="." unique_id=369494240 instance=ExtResource("8_gee14")]
+position = Vector2(260, -80)
+
+[node name="ShotgunAmmoPickup" parent="." unique_id=200193175 instance=ExtResource("8_gee14")]
+position = Vector2(260, 80)
+ammo_type = "shotgun"
+
+[node name="RifleAmmoPickup" parent="." unique_id=226624756 instance=ExtResource("8_gee14")]
+position = Vector2(260, 200)
+ammo_type = "rifle"
+
+[node name="SidearmAmmoPickup" parent="." unique_id=1981171155 instance=ExtResource("8_gee14")]
+position = Vector2(260, 320)
+ammo_type = "sidearm"

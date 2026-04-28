@@ -1,7 +1,7 @@
 extends Label
 
-@export var pickup_group: StringName = &"weapon_pickup"
-@export var panel_size: Vector2 = Vector2(520.0, 48.0)
+@export var pickup_group: StringName = &"pickup"
+@export var panel_size: Vector2 = Vector2(900.0, 110.0)
 @export var bottom_margin: float = 42.0
 @export var refresh_interval: float = 0.05
 
@@ -17,13 +17,14 @@ func _ready() -> void:
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
-	add_theme_font_size_override("font_size", 24)
+	add_theme_font_size_override("font_size", 22)
 	add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
 	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
 	add_theme_constant_override("shadow_offset_x", 2)
 	add_theme_constant_override("shadow_offset_y", 2)
 
 	text = ""
+	visible = false
 	_update_position()
 
 
@@ -40,7 +41,7 @@ func _process(delta: float) -> void:
 
 
 func _update_hint_text() -> void:
-	var pickup := _find_active_pickup()
+	var pickup: Node = _find_active_pickup()
 
 	if pickup == null:
 		text = ""

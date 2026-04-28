@@ -5,6 +5,9 @@ const WEAPON_PICKUP_SCRIPT: Script = preload("res://scripts/weapons/weapon_picku
 
 @export var bullet_scene: PackedScene = preload("res://scenes/bullet.tscn")
 @export var drop_distance: float = 90.0
+@export var max_inventory_slots: int = 2
+@export var locked_sidearm_slot_index: int = 0
+@export var duplicate_refill_fraction: float = 0.5
 
 var owned_weapons: Array[WeaponInstance] = []
 var current_weapon_index: int = 0
@@ -87,14 +90,18 @@ func _create_test_loadout() -> void:
 	if owned_weapons.size() > 0:
 		return
 
+	max_inventory_slots = maxi(max_inventory_slots, 1)
+	locked_sidearm_slot_index = clampi(locked_sidearm_slot_index, 0, max_inventory_slots - 1)
+
+	owned_weapons.resize(max_inventory_slots)
+
 	var weapon_data_script: Script = load("res://scripts/weapons/weapon_data.gd")
 
 	var negotiator_data = weapon_data_script.call("create_the_negotiator")
 	var negotiator_instance := WeaponInstance.new(negotiator_data)
 
-	owned_weapons.append(negotiator_instance)
-
-	current_weapon_index = 0
+	owned_weapons[locked_sidearm_slot_index] = negotiator_instance
+	current_weapon_index = locked_sidearm_slot_index
 
 
 func _update_timers(delta: float) -> void:
@@ -249,29 +256,217 @@ func _spawn_weapon_projectiles(weapon: WeaponInstance, shoot_direction: Vector2)
 		bullet_parent.add_child(bullet)
 
 
-func pickup_weapon_instance(weapon_instance: WeaponInstance) -> bool:
+func pickup_weapon_instance(weapon_instance: WeaponInstance, pickup_position: Vector2 = Vector2.ZERO) -> bool:
 	if weapon_instance == null:
 		return false
 
 	if weapon_instance.data == null:
 		return false
 
-	owned_weapons.append(weapon_instance)
+	var duplicate_weapon: WeaponInstance = _find_weapon_by_id(weapon_instance.data.id)
 
-	var new_weapon_index: int = owned_weapons.size() - 1
+	if duplicate_weapon != null:
+		var added_ammo: int = duplicate_weapon.add_reserve_ammo_by_fraction(duplicate_refill_fraction)
 
-	print("Weapon added to inventory:", weapon_instance.data.display_name)
-	print("Ammo:", weapon_instance.get_ammo_text())
+		if added_ammo <= 0:
+			_show_action_message("%s ammo is already full." % duplicate_weapon.data.display_name)
+			return false
+
+		_show_action_message("%s duplicate: +%s reserve ammo." % [
+			duplicate_weapon.data.display_name,
+			str(added_ammo)
+		])
+
+		if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
+			current_weapon_index = _find_weapon_index(duplicate_weapon)
+			_cancel_reload_and_shot_delay()
+			_print_current_weapon()
+
+		return true
+
+	var free_slot_index: int = _get_first_free_weapon_slot_index()
+
+	if free_slot_index >= 0:
+		_add_new_weapon_to_inventory_slot(weapon_instance, free_slot_index)
+		return true
+
+	return _replace_current_weapon_with_pickup(weapon_instance, pickup_position)
+
+
+func _add_new_weapon_to_inventory_slot(weapon_instance: WeaponInstance, slot_index: int) -> void:
+	if slot_index < 0 or slot_index >= max_inventory_slots:
+		return
+
+	owned_weapons[slot_index] = weapon_instance
+
+	_show_action_message("Picked up %s." % weapon_instance.data.display_name)
 
 	if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
-		current_weapon_index = new_weapon_index
-		_reload_time_left = 0.0
-		_shot_cooldown_left = 0.0
+		current_weapon_index = slot_index
+		_cancel_reload_and_shot_delay()
 		_print_current_weapon()
 	else:
-		print("Picked up, but too heavy for this Trump:", weapon_instance.data.display_name)
+		_show_action_message("Picked up %s, but it is too heavy for this Trump." % weapon_instance.data.display_name)
+
+
+func _replace_current_weapon_with_pickup(weapon_instance: WeaponInstance, pickup_position: Vector2) -> bool:
+	var current_weapon: WeaponInstance = _get_current_weapon()
+
+	if current_weapon == null or current_weapon.data == null:
+		_show_action_message("Inventory is full.")
+		return false
+
+	if not _can_current_weapon_be_replaced():
+		_show_action_message("Cannot replace %s." % current_weapon.data.display_name)
+		return false
+
+	var dropped_weapon: WeaponInstance = current_weapon
+	var dropped_name: String = dropped_weapon.data.display_name
+
+	owned_weapons[current_weapon_index] = weapon_instance
+
+	_cancel_reload_and_shot_delay()
+
+	var drop_position := pickup_position
+
+	if drop_position == Vector2.ZERO and _owner_player_2d != null:
+		drop_position = _owner_player_2d.global_position
+
+	_spawn_weapon_pickup_at(dropped_weapon, drop_position)
+
+	if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
+		_print_current_weapon()
+	else:
+		_switch_to_first_usable_weapon()
+		_show_action_message("Picked up %s, but it is too heavy for this Trump." % weapon_instance.data.display_name)
+
+	_show_action_message("Replaced %s with %s." % [
+		dropped_name,
+		weapon_instance.data.display_name
+	])
 
 	return true
+
+
+func pickup_ammo(ammo_type: String, refill_fraction: float, source_name: String = "Ammo") -> bool:
+	var total_added: int = 0
+
+	for weapon in owned_weapons:
+		if weapon == null:
+			continue
+
+		if weapon.data == null:
+			continue
+
+		if weapon.data.infinite_reserve_ammo:
+			continue
+
+		if ammo_type != "universal" and weapon.data.ammo_type != ammo_type:
+			continue
+
+		var added_ammo: int = weapon.add_reserve_ammo_by_fraction(refill_fraction)
+
+		if added_ammo > 0:
+			total_added += added_ammo
+			print("%s +%s reserve ammo -> %s" % [
+				weapon.data.display_name,
+				str(added_ammo),
+				weapon.get_ammo_text()
+			])
+
+	if total_added <= 0:
+		_show_action_message("%s: no compatible weapon needs ammo." % source_name)
+		return false
+
+	_show_action_message("Picked up %s. +%s ammo total." % [
+		source_name,
+		str(total_added)
+	])
+
+	return true
+
+
+func get_pickup_hint_for_weapon(weapon_instance: WeaponInstance) -> String:
+	if weapon_instance == null or weapon_instance.data == null:
+		return ""
+
+	var duplicate_weapon: WeaponInstance = _find_weapon_by_id(weapon_instance.data.id)
+
+	if duplicate_weapon != null:
+		var max_reserve: int = duplicate_weapon.get_max_reserve_ammo()
+
+		if duplicate_weapon.data.infinite_reserve_ammo:
+			return "[E] Pick up %s\nAlready owned. Infinite ammo weapon." % weapon_instance.data.display_name
+
+		if max_reserve > 0 and duplicate_weapon.reserve_ammo >= max_reserve:
+			return "[E] Pick up %s\nAlready owned. Reserve ammo is full." % weapon_instance.data.display_name
+
+		return "[E] Pick up %s\nAlready owned: +50%% reserve ammo." % weapon_instance.data.display_name
+
+	var free_slot_index: int = _get_first_free_weapon_slot_index()
+
+	if free_slot_index >= 0:
+		var description: String = weapon_instance.data.description
+
+		if description.is_empty():
+			return "[E] Pick up %s\nSlot %s." % [
+				weapon_instance.data.display_name,
+				str(free_slot_index + 1)
+			]
+
+		return "[E] Pick up %s\n%s" % [
+			weapon_instance.data.display_name,
+			description
+		]
+
+	var current_weapon: WeaponInstance = _get_current_weapon()
+
+	if current_weapon == null or current_weapon.data == null:
+		return "Inventory full."
+
+	if not _can_current_weapon_be_replaced():
+		return "Inventory full.\nCannot replace %s." % current_weapon.data.display_name
+
+	return "[E] Replace %s with %s\nInventory full." % [
+		current_weapon.data.display_name,
+		weapon_instance.data.display_name
+	]
+
+
+func _find_weapon_by_id(weapon_id: StringName) -> WeaponInstance:
+	for weapon in owned_weapons:
+		if weapon == null:
+			continue
+
+		if weapon.data == null:
+			continue
+
+		if weapon.data.id == weapon_id:
+			return weapon
+
+	return null
+
+
+func _find_weapon_index(target_weapon: WeaponInstance) -> int:
+	for i in range(owned_weapons.size()):
+		if owned_weapons[i] == target_weapon:
+			return i
+
+	return -1
+
+
+func _get_first_free_weapon_slot_index() -> int:
+	for i in range(max_inventory_slots):
+		if i == locked_sidearm_slot_index:
+			continue
+
+		if i >= owned_weapons.size():
+			return -1
+
+		if owned_weapons[i] == null:
+			return i
+
+	return -1
 
 
 func _try_drop_current_weapon() -> void:
@@ -284,36 +479,28 @@ func _try_drop_current_weapon() -> void:
 		return
 
 	if weapon.data.starter_weapon or not weapon.data.can_drop:
-		print("Cannot drop starter weapon:", weapon.data.display_name)
+		_show_action_message("Cannot drop %s." % weapon.data.display_name)
 		return
 
 	var dropped_weapon: WeaponInstance = weapon
 	var dropped_weapon_name: String = dropped_weapon.data.display_name
 
-	owned_weapons.remove_at(current_weapon_index)
+	owned_weapons[current_weapon_index] = null
 
-	_reload_time_left = 0.0
-	_shot_cooldown_left = 0.0
+	_cancel_reload_and_shot_delay()
 
 	_spawn_weapon_pickup(dropped_weapon)
 
-	if owned_weapons.is_empty():
-		current_weapon_index = -1
-		print("Dropped weapon:", dropped_weapon_name)
-		return
+	_switch_to_first_usable_weapon()
 
-	if current_weapon_index >= owned_weapons.size():
-		current_weapon_index = owned_weapons.size() - 1
-
-	if not _can_select_weapon_index(current_weapon_index):
-		_switch_to_first_usable_weapon()
-	else:
-		_print_current_weapon()
-
-	print("Dropped weapon:", dropped_weapon_name)
+	_show_action_message("Dropped %s." % dropped_weapon_name)
 
 
 func _spawn_weapon_pickup(weapon_instance: WeaponInstance) -> void:
+	_spawn_weapon_pickup_at(weapon_instance, _get_drop_position())
+
+
+func _spawn_weapon_pickup_at(weapon_instance: WeaponInstance, spawn_position: Vector2) -> void:
 	if weapon_instance == null:
 		return
 
@@ -323,7 +510,7 @@ func _spawn_weapon_pickup(weapon_instance: WeaponInstance) -> void:
 		return
 
 	pickup_node.call("setup_weapon", weapon_instance)
-	pickup_node.global_position = _get_drop_position()
+	pickup_node.global_position = spawn_position
 
 	var world_parent: Node = _get_world_parent()
 	world_parent.add_child(pickup_node)
@@ -482,41 +669,46 @@ func _try_select_weapon_slot(slot_index: int) -> void:
 	if slot_index < 0:
 		return
 
+	if slot_index >= max_inventory_slots:
+		_show_action_message("Slot %s is unavailable." % str(slot_index + 1))
+		return
+
 	if slot_index >= owned_weapons.size():
-		print("Weapon slot empty:", slot_index + 1)
+		_show_action_message("Slot %s is empty." % str(slot_index + 1))
 		return
 
 	var weapon: WeaponInstance = owned_weapons[slot_index]
 
 	if weapon == null:
+		_show_action_message("Slot %s is empty." % str(slot_index + 1))
 		return
 
 	if not weapon.data.can_be_used_by_scale(_get_player_trump_scale()):
-		print("Weapon too heavy for this Trump:", weapon.data.display_name)
+		_show_action_message("%s is too heavy for this Trump." % weapon.data.display_name)
 		return
 
 	if current_weapon_index == slot_index:
 		return
 
 	current_weapon_index = slot_index
-	_reload_time_left = 0.0
+	_cancel_reload_and_shot_delay()
 
 	_print_current_weapon()
 
 
 func _select_next_usable_weapon() -> void:
-	if owned_weapons.size() <= 1:
+	if _get_owned_weapon_count() <= 1:
 		return
 
 	var start_index: int = current_weapon_index
 	var index: int = current_weapon_index
 
-	for i in range(owned_weapons.size()):
-		index = (index + 1) % owned_weapons.size()
+	for i in range(max_inventory_slots):
+		index = (index + 1) % max_inventory_slots
 
 		if _can_select_weapon_index(index):
 			current_weapon_index = index
-			_reload_time_left = 0.0
+			_cancel_reload_and_shot_delay()
 			_print_current_weapon()
 			return
 
@@ -524,21 +716,21 @@ func _select_next_usable_weapon() -> void:
 
 
 func _select_previous_usable_weapon() -> void:
-	if owned_weapons.size() <= 1:
+	if _get_owned_weapon_count() <= 1:
 		return
 
 	var start_index: int = current_weapon_index
 	var index: int = current_weapon_index
 
-	for i in range(owned_weapons.size()):
+	for i in range(max_inventory_slots):
 		index -= 1
 
 		if index < 0:
-			index = owned_weapons.size() - 1
+			index = max_inventory_slots - 1
 
 		if _can_select_weapon_index(index):
 			current_weapon_index = index
-			_reload_time_left = 0.0
+			_cancel_reload_and_shot_delay()
 			_print_current_weapon()
 			return
 
@@ -546,7 +738,10 @@ func _select_previous_usable_weapon() -> void:
 
 
 func _can_select_weapon_index(index: int) -> bool:
-	if index < 0 or index >= owned_weapons.size():
+	if index < 0 or index >= max_inventory_slots:
+		return false
+
+	if index >= owned_weapons.size():
 		return false
 
 	var weapon: WeaponInstance = owned_weapons[index]
@@ -560,24 +755,79 @@ func _can_select_weapon_index(index: int) -> bool:
 func _switch_to_first_usable_weapon() -> void:
 	var trump_scale: float = _get_player_trump_scale()
 
-	for i in range(owned_weapons.size()):
+	for i in range(max_inventory_slots):
+		if i >= owned_weapons.size():
+			continue
+
 		var weapon: WeaponInstance = owned_weapons[i]
+
+		if weapon == null:
+			continue
 
 		if weapon.data.can_be_used_by_scale(trump_scale):
 			current_weapon_index = i
-			_reload_time_left = 0.0
+			_cancel_reload_and_shot_delay()
 			_print_current_weapon()
 			return
+
+
+func _can_current_weapon_be_replaced() -> bool:
+	var weapon: WeaponInstance = _get_current_weapon()
+
+	if weapon == null or weapon.data == null:
+		return false
+
+	if current_weapon_index == locked_sidearm_slot_index:
+		return false
+
+	if weapon.data.starter_weapon:
+		return false
+
+	if not weapon.data.can_drop:
+		return false
+
+	return true
+
+
+func _cancel_reload_and_shot_delay() -> void:
+	_reload_time_left = 0.0
+	_shot_cooldown_left = 0.0
 
 
 func _get_current_weapon() -> WeaponInstance:
 	if owned_weapons.is_empty():
 		return null
 
-	if current_weapon_index < 0 or current_weapon_index >= owned_weapons.size():
-		current_weapon_index = 0
+	if current_weapon_index < 0 or current_weapon_index >= max_inventory_slots:
+		current_weapon_index = locked_sidearm_slot_index
 
-	return owned_weapons[current_weapon_index]
+	if current_weapon_index >= owned_weapons.size():
+		_switch_to_first_usable_weapon()
+
+	if current_weapon_index < 0 or current_weapon_index >= owned_weapons.size():
+		return null
+
+	var weapon: WeaponInstance = owned_weapons[current_weapon_index]
+
+	if weapon == null:
+		_switch_to_first_usable_weapon()
+
+		if current_weapon_index < 0 or current_weapon_index >= owned_weapons.size():
+			return null
+
+		weapon = owned_weapons[current_weapon_index]
+
+	return weapon
+
+
+func _get_owned_weapon_count() -> int:
+	var count: int = 0
+
+	for weapon in owned_weapons:
+		if weapon != null:
+			count += 1
+
+	return count
 
 
 func get_current_weapon_name() -> String:
@@ -600,6 +850,18 @@ func get_current_ammo_text() -> String:
 
 func is_reloading() -> bool:
 	return _reload_time_left > 0.0
+
+
+func _show_action_message(message: String) -> void:
+	print(message)
+
+	var hud := get_tree().get_first_node_in_group("action_message_hud")
+
+	if hud == null:
+		return
+
+	if hud.has_method("show_message"):
+		hud.call("show_message", message)
 
 
 func _print_current_weapon() -> void:
