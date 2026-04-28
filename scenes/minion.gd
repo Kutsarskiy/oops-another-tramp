@@ -1,8 +1,9 @@
 extends CharacterBody2D
 
-@export var move_speed: float = 120.0
-@export var fire_rate: float = 1.0        # выстрелов в секунду
-@export var keep_distance: float = 260.0  # держим дистанцию
+@export var move_speed: float = 90.0
+@export var fire_rate: float = 0.5          # 0.5 = один выстрел в две секунды
+@export var start_shoot_delay: float = 1.5  # задержка перед первым выстрелом
+@export var keep_distance: float = 420.0    # дистанция, на которой миньон останавливается
 @export var max_hp: int = 3
 
 @onready var muzzle: Marker2D = $Muzzle
@@ -16,6 +17,7 @@ func _ready() -> void:
 	hp = max_hp
 	add_to_group("enemy")
 	_player = get_tree().get_first_node_in_group("player") as Node2D
+	_shoot_cd = start_shoot_delay
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(_player):
