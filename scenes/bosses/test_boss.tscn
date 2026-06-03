@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://ccgcg1dl7td02"]
+
+[ext_resource type="Script" uid="uid://c2617m3m4x0lk" path="res://scripts/bosses/test_boss.gd" id="1_2ipu8"]
+[ext_resource type="Texture2D" uid="uid://djjwp8f18eo1j" path="res://icon.svg" id="2_dt46n"]
+[ext_resource type="Script" uid="uid://8o3tt7kwruf1" path="res://scripts/boss_attacks/boss_attack_controller.gd" id="3_dt46n"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qbl7o"]
+size = Vector2(64, 64)
+
+[node name="TestBoss" type="CharacterBody2D" unique_id=1457671439 groups=["enemy"]]
+script = ExtResource("1_2ipu8")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1052193055]
+texture = ExtResource("2_dt46n")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=923748059]
+shape = SubResource("RectangleShape2D_qbl7o")
+
+[node name="AttackController" type="Node" parent="." unique_id=1298105506]
+script = ExtResource("3_dt46n")

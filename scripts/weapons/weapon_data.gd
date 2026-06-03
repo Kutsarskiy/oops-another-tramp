@@ -104,8 +104,8 @@ static func create_the_final_offer():
 	data.bullet_color = Color(1.0, 0.55, 0.2)
 
 	data.magazine_size = 8
-	data.reserve_ammo = 24
-	data.max_reserve_ammo = 24
+	data.reserve_ammo = 192
+	data.max_reserve_ammo = 192
 	data.infinite_reserve_ammo = false
 	data.reload_time = 1.35
 
@@ -142,8 +142,8 @@ static func create_the_second_amendment():
 	data.bullet_color = Color(0.85, 0.9, 1.0)
 
 	data.magazine_size = 30
-	data.reserve_ammo = 90
-	data.max_reserve_ammo = 90
+	data.reserve_ammo = 900
+	data.max_reserve_ammo = 900
 	data.infinite_reserve_ammo = false
 	data.reload_time = 1.45
 

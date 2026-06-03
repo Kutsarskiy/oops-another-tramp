@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://d2vecgpgxk1sq"]
+
+[ext_resource type="Script" uid="uid://bu4di3og7fi4w" path="res://scripts/ui/boss_hud.gd" id="1_ywhax"]
+
+[node name="BossHUD" type="Control" unique_id=718993401]
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+script = ExtResource("1_ywhax")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1908953012]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=867200719]
+layout_mode = 2
+
+[node name="BossName" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1886472883]
+layout_mode = 2
+text = "Boss"
+
+[node name="BossHP" type="ProgressBar" parent="MarginContainer/VBoxContainer" unique_id=853214554]
+custom_minimum_size = Vector2(1000, 30)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="PhaseLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1039480630]
+layout_mode = 2
+text = "Phase 1"

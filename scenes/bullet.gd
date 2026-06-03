@@ -80,6 +80,7 @@ func _apply_collision_radius() -> void:
 
 
 func _on_body_entered(body: Node) -> void:
+
 	if body.is_in_group(team):
 		return
 

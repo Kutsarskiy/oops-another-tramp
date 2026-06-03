@@ -132,17 +132,17 @@ func _get_refill_fraction() -> float:
 
 	match ammo_type:
 		"universal":
-			return 0.10
+			return 0.25
 		"sidearm":
-			return 0.25
+			return 0.50
 		"shotgun":
-			return 0.25
+			return 0.50
 		"rifle":
-			return 0.25
+			return 0.50
 		"heavy":
-			return 0.25
+			return 0.50
 		_:
-			return 0.10
+			return 0.50
 
 
 func _get_display_name() -> String:

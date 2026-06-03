@@ -19,6 +19,11 @@ run/main_scene="uid://r5mom464fe8l"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[autoload]
+
+RunManager="*uid://rapr55bc50mg"
+BossManager="*uid://cs4gxfsfy013j"
+
 [display]
 
 window/size/viewport_width=1280
