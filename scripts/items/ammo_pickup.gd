@@ -15,8 +15,8 @@ func _ready() -> void:
 	add_to_group("pickup")
 	add_to_group("ammo_pickup")
 
-	monitoring = true
-	monitorable = true
+	set_deferred("monitoring", true)
+	set_deferred("monitorable", true)
 
 	collision_layer = 0
 	collision_mask = 1 << 1

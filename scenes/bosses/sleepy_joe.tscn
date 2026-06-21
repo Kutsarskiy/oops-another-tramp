@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://b70aqggcc3e6y"]
+
+[ext_resource type="Script" uid="uid://rp2jarhycos5" path="res://scripts/bosses/sleepy_joe_boss.gd" id="1_boss"]
+[ext_resource type="Texture2D" uid="uid://b57xwrvuifev5" path="res://assets/characters/bosses/sleepy_joe/paper/sleepy_joe_right_idle.png" id="2_sleepy_idle"]
+[ext_resource type="Script" uid="uid://8o3tt7kwruf1" path="res://scripts/boss_attacks/boss_attack_controller.gd" id="3_attack"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 32.0
+height = 128.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_hurtbox"]
+radius = 32.0
+height = 128.0
+
+[node name="SleepyJoe" type="CharacterBody2D" unique_id=591847434 groups=["enemy"]]
+collision_layer = 8
+collision_mask = 3
+motion_mode = 1
+script = ExtResource("1_boss")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=828692247]
+texture_filter = 1
+texture = ExtResource("2_sleepy_idle")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=874265305]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=1780757882]
+collision_layer = 8
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=1313850007]
+shape = SubResource("CapsuleShape2D_hurtbox")
+
+[node name="AttackController" type="Node" parent="." unique_id=993169731]
+script = ExtResource("3_attack")

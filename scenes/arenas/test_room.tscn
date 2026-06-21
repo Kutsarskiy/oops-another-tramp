@@ -1,0 +1,134 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/arenas/basic_arena.gd" id="1_arena"]
+[ext_resource type="Script" path="res://scripts/portals/boss_portal.gd" id="2_portal"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/weapon_pickup.tscn" id="3_weapon"]
+[ext_resource type="PackedScene" path="res://scenes/items/ammo_pickup.tscn" id="4_ammo"]
+[ext_resource type="Script" path="res://scripts/interactables/enemy_spawn_button.gd" id="5_button"]
+
+[node name="TestRoom" type="Node2D"]
+script = ExtResource("1_arena")
+arena_size = Vector2(2600, 1800)
+arena_color = Color(0.28, 0.34, 0.32, 1)
+wall_color = Color(0.18, 0.48, 0.42, 1)
+spawn_debug_pickups = false
+spawn_debug_minion = false
+
+[node name="PlayerSpawnPoint" type="Marker2D" parent="."]
+position = Vector2(0, 420)
+
+[node name="Portals" type="Node2D" parent="."]
+
+[node name="PortalSleepyJoe" type="Area2D" parent="Portals"]
+position = Vector2(-720, -360)
+script = ExtResource("2_portal")
+target_circle_id = 1
+prompt_text = "[E] Enter Sleepy Joe"
+portal_color = Color(0.90, 0.28, 0.22, 0.9)
+glow_color = Color(0.90, 0.28, 0.22, 0.2)
+
+[node name="PortalTechnoKing" type="Area2D" parent="Portals"]
+position = Vector2(-360, -360)
+script = ExtResource("2_portal")
+target_circle_id = 2
+prompt_text = "[E] Enter The Techno-King"
+portal_color = Color(0.28, 0.60, 0.95, 0.9)
+glow_color = Color(0.28, 0.60, 0.95, 0.2)
+
+[node name="PortalMadamFirewall" type="Area2D" parent="Portals"]
+position = Vector2(0, -360)
+script = ExtResource("2_portal")
+target_circle_id = 3
+prompt_text = "[E] Enter Madam Firewall"
+portal_color = Color(0.95, 0.32, 0.62, 0.9)
+glow_color = Color(0.95, 0.32, 0.62, 0.2)
+
+[node name="PortalXiJinping" type="Area2D" parent="Portals"]
+position = Vector2(360, -360)
+script = ExtResource("2_portal")
+target_circle_id = 4
+prompt_text = "[E] Enter Xi Jinping"
+portal_color = Color(0.95, 0.70, 0.25, 0.9)
+glow_color = Color(0.95, 0.70, 0.25, 0.2)
+
+[node name="PortalBorisJohnson" type="Area2D" parent="Portals"]
+position = Vector2(720, -360)
+script = ExtResource("2_portal")
+target_circle_id = 5
+prompt_text = "[E] Enter Boris Johnson"
+portal_color = Color(0.45, 0.55, 0.95, 0.9)
+glow_color = Color(0.45, 0.55, 0.95, 0.2)
+
+[node name="PortalMarkZuckerberg" type="Area2D" parent="Portals"]
+position = Vector2(-720, -120)
+script = ExtResource("2_portal")
+target_circle_id = 6
+prompt_text = "[E] Enter Mark Zuckerberg"
+portal_color = Color(0.20, 0.82, 0.82, 0.9)
+glow_color = Color(0.20, 0.82, 0.82, 0.2)
+
+[node name="PortalGeneralRocket" type="Area2D" parent="Portals"]
+position = Vector2(-360, -120)
+script = ExtResource("2_portal")
+target_circle_id = 7
+prompt_text = "[E] Enter General Rocket"
+portal_color = Color(0.85, 0.25, 0.25, 0.9)
+glow_color = Color(0.85, 0.25, 0.25, 0.2)
+
+[node name="PortalVladimirPutin" type="Area2D" parent="Portals"]
+position = Vector2(0, -120)
+script = ExtResource("2_portal")
+target_circle_id = 8
+prompt_text = "[E] Enter Vladimir Putin"
+portal_color = Color(0.42, 0.62, 0.82, 0.9)
+glow_color = Color(0.42, 0.62, 0.82, 0.2)
+
+[node name="PortalJDVance" type="Area2D" parent="Portals"]
+position = Vector2(360, -120)
+script = ExtResource("2_portal")
+target_circle_id = 9
+prompt_text = "[E] Enter JD Vance"
+portal_color = Color(0.76, 0.70, 0.28, 0.9)
+glow_color = Color(0.76, 0.70, 0.28, 0.2)
+
+[node name="PortalPrimeTramp" type="Area2D" parent="Portals"]
+position = Vector2(720, -120)
+script = ExtResource("2_portal")
+target_circle_id = 10
+prompt_text = "[E] Enter Prime Tramp"
+portal_color = Color(1.0, 0.42, 0.24, 0.9)
+glow_color = Color(1.0, 0.42, 0.24, 0.2)
+
+[node name="WeaponStand" type="Node2D" parent="."]
+
+[node name="FinalOfferPickup" parent="WeaponStand" instance=ExtResource("3_weapon")]
+position = Vector2(-240, 210)
+
+[node name="SecondAmendmentPickup" parent="WeaponStand" instance=ExtResource("3_weapon")]
+position = Vector2(0, 210)
+debug_weapon_id = "the_second_amendment"
+
+[node name="NegotiatorRefillPickup" parent="WeaponStand" instance=ExtResource("3_weapon")]
+position = Vector2(240, 210)
+debug_weapon_id = "the_negotiator"
+
+[node name="AmmoStand" type="Node2D" parent="."]
+
+[node name="UniversalAmmoPickup" parent="AmmoStand" instance=ExtResource("4_ammo")]
+position = Vector2(-360, 360)
+
+[node name="SidearmAmmoPickup" parent="AmmoStand" instance=ExtResource("4_ammo")]
+position = Vector2(-120, 360)
+ammo_type = "sidearm"
+
+[node name="ShotgunAmmoPickup" parent="AmmoStand" instance=ExtResource("4_ammo")]
+position = Vector2(120, 360)
+ammo_type = "shotgun"
+
+[node name="RifleAmmoPickup" parent="AmmoStand" instance=ExtResource("4_ammo")]
+position = Vector2(360, 360)
+ammo_type = "rifle"
+
+[node name="SpawnEnemyButton" type="Area2D" parent="."]
+position = Vector2(0, 40)
+script = ExtResource("5_button")

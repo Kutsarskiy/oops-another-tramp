@@ -7,7 +7,13 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qbl7o"]
 size = Vector2(64, 64)
 
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_hurtbox"]
+radius = 44.0
+height = 96.0
+
 [node name="TestBoss" type="CharacterBody2D" unique_id=1457671439 groups=["enemy"]]
+collision_layer = 8
+collision_mask = 3
 script = ExtResource("1_2ipu8")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1052193055]
@@ -15,6 +21,13 @@ texture = ExtResource("2_dt46n")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=923748059]
 shape = SubResource("RectangleShape2D_qbl7o")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 8
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CapsuleShape2D_hurtbox")
 
 [node name="AttackController" type="Node" parent="." unique_id=1298105506]
 script = ExtResource("3_dt46n")

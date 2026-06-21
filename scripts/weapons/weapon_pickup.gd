@@ -8,7 +8,7 @@ class_name WeaponPickup
 @export var draw_color: Color = Color(1.0, 0.55, 0.2, 1.0)
 @export var interact_action: StringName = &"interact"
 
-var weapon_instance: WeaponInstance = null
+var weapon_instance = null
 
 var _player_in_range: Node = null
 var _collision_shape: CollisionShape2D = null
@@ -18,8 +18,8 @@ func _ready() -> void:
 	add_to_group("pickup")
 	add_to_group("weapon_pickup")
 
-	monitoring = true
-	monitorable = true
+	set_deferred("monitoring", true)
+	set_deferred("monitorable", true)
 
 	collision_layer = 0
 	collision_mask = 1 << 1
@@ -53,7 +53,7 @@ func _process(_delta: float) -> void:
 		_try_pick_up()
 
 
-func setup_weapon(new_weapon_instance: WeaponInstance) -> void:
+func setup_weapon(new_weapon_instance) -> void:
 	weapon_instance = new_weapon_instance
 	_apply_visual_from_weapon()
 	queue_redraw()
@@ -182,7 +182,7 @@ func _draw() -> void:
 	draw_rect(grip_rect, draw_color.darkened(0.35))
 
 
-func _create_weapon_instance_by_id(weapon_id: String) -> WeaponInstance:
+func _create_weapon_instance_by_id(weapon_id: String):
 	var weapon_data_script: Script = load("res://scripts/weapons/weapon_data.gd")
 	var weapon_data = null
 
@@ -196,4 +196,5 @@ func _create_weapon_instance_by_id(weapon_id: String) -> WeaponInstance:
 		_:
 			weapon_data = weapon_data_script.call("create_the_final_offer")
 
-	return WeaponInstance.new(weapon_data)
+	var weapon_instance_script: Script = load("res://scripts/weapons/weapon_instance.gd")
+	return weapon_instance_script.new(weapon_data)

@@ -3,11 +3,15 @@ extends Node
 enum BossState {
 	IDLE,
 	SPAWNING,
+	INTRO,
 	ACTIVE,
 	PHASE_TRANSITION,
-	DEFEATED
+	DEFEATED,
+	POST_FIGHT
 }
 
+signal encounter_prepared
+signal encounter_intro_started
 signal encounter_started
 signal encounter_completed
 
@@ -20,11 +24,41 @@ var boss_state: BossState = BossState.IDLE
 var encounter: BossEncounter = BossEncounter.new()
 
 
+func prepare_encounter() -> void:
+	encounter = BossEncounter.new()
+	boss_state = BossState.SPAWNING
+	encounter_prepared.emit()
+
+
+func begin_encounter_intro() -> void:
+	boss_state = BossState.INTRO
+
+	RunManager.set_run_state(
+		RunManager.RunState.BOSS_INTRO
+	)
+
+	for boss in encounter.main_bosses:
+		if is_instance_valid(boss):
+			boss.begin_intro()
+
+	for boss in encounter.mini_bosses:
+		if is_instance_valid(boss):
+			boss.begin_intro()
+
+	encounter_intro_started.emit()
+
+
 func start_encounter() -> void:
 
-	encounter = BossEncounter.new()
-
 	boss_state = BossState.ACTIVE
+
+	for boss in encounter.main_bosses:
+		if is_instance_valid(boss):
+			boss.start_fight()
+
+	for boss in encounter.mini_bosses:
+		if is_instance_valid(boss):
+			boss.start_fight()
 
 	encounter_started.emit()
 
@@ -37,7 +71,8 @@ func register_main_boss(boss: BaseBoss) -> void:
 
 	encounter.add_main_boss(boss)
 
-	boss.phase_changed.connect(_on_phase_changed)
+	if not boss.phase_changed.is_connected(_on_phase_changed):
+		boss.phase_changed.connect(_on_phase_changed)
 
 	boss.boss_defeated.connect(
 		func():
@@ -51,7 +86,8 @@ func register_mini_boss(boss: BaseBoss) -> void:
 
 	encounter.add_mini_boss(boss)
 
-	boss.phase_changed.connect(_on_phase_changed)
+	if not boss.phase_changed.is_connected(_on_phase_changed):
+		boss.phase_changed.connect(_on_phase_changed)
 
 	boss.boss_defeated.connect(
 		func():
@@ -88,6 +124,8 @@ func _on_main_boss_defeated(boss: BaseBoss) -> void:
 		)
 
 		encounter_completed.emit()
+
+		boss_state = BossState.POST_FIGHT
 
 
 func _on_mini_boss_defeated(boss: BaseBoss) -> void:

@@ -42,3 +42,6 @@ func shoot() -> void:
 	).normalized()
 
 	bullet.setup_bullet(true)
+
+	if owner_boss.has_method("on_attack_shot"):
+		owner_boss.call("on_attack_shot")

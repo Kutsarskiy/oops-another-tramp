@@ -1,12 +1,12 @@
 extends RefCounted
 class_name WeaponInstance
 
-var data: WeaponData
+var data
 var ammo_in_magazine: int = 0
 var reserve_ammo: int = 0
 
 
-func _init(weapon_data: WeaponData = null) -> void:
+func _init(weapon_data = null) -> void:
 	data = weapon_data
 
 	if data != null:

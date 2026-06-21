@@ -28,6 +28,7 @@ BossManager="*uid://cs4gxfsfy013j"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/mode=3
 window/stretch/mode="canvas_items"
 
 [input]
@@ -97,5 +98,6 @@ drop_weapon={
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

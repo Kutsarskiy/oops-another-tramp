@@ -7,6 +7,7 @@ var circle_id: int = 1
 var circle_name: String = ""
 
 var boss_id: String = ""
+var arena_scene: PackedScene = null
 var boss_scene: PackedScene = null
 
 
@@ -21,6 +22,7 @@ func load_circle(new_circle_id: int) -> void:
 	circle_id = new_circle_id
 	circle_name = data["name"]
 	boss_id = data["boss_id"]
+	arena_scene = data.get("arena_scene", null)
 	boss_scene = data["boss_scene"]
 
 
@@ -44,3 +46,7 @@ func complete_circle() -> void:
 
 func get_next_circle() -> int:
 	return circle_id + 1
+
+
+func is_final_circle() -> bool:
+	return circle_id >= CircleDatabase.get_circle_count()

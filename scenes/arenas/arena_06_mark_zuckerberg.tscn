@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/arenas/basic_arena.gd" id="1_arena"]
+[ext_resource type="Script" path="res://scripts/managers/boss_spawner.gd" id="2_spawner"]
+
+[node name="Arena06MarkZuckerberg" type="Node2D"]
+script = ExtResource("1_arena")
+arena_size = Vector2(2240, 2240)
+arena_color = Color(0.22, 0.42, 0.46, 1)
+spawn_debug_pickups = false
+spawn_debug_minion = false
+
+[node name="PlayerSpawnPoint" type="Marker2D" parent="."]
+position = Vector2(0, 420)
+
+[node name="BossSpawner" type="Node" parent="."]
+script = ExtResource("2_spawner")
+
+[node name="MainBossSpawnPoint" type="Marker2D" parent="BossSpawner"]
+position = Vector2(0, 0)
+
+[node name="RewardSpawnPoint" type="Marker2D" parent="BossSpawner"]
+position = Vector2(0, 160)
+
+[node name="ExitSpawnPoint" type="Marker2D" parent="BossSpawner"]
+position = Vector2(0, -760)

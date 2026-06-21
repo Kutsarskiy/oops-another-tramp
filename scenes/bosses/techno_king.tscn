@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/bosses/generic_oval_boss.tscn" id="1_generic"]
+
+[node name="TechnoKing" instance=ExtResource("1_generic")]
+boss_id = "techno_king"
+boss_name = "The Techno-King"

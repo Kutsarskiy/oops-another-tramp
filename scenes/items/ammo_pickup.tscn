@@ -1,6 +1,6 @@
-[gd_scene format=3 uid="uid://bg8u27pltsphw"]
+[gd_scene format=3 uid="uid://bbqu43ej8wj2o"]
 
-[ext_resource type="Script" uid="uid://74ks3nmllm48" path="res://scripts/items/ammo_pickup.gd" id="1_783f2"]
+[ext_resource type="Script" path="res://scripts/items/ammo_pickup.gd" id="1_783f2"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_2dbgo"]
 radius = 44.0

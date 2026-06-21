@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bdgl803b0l8ud" path="res://scenes/bullet.gd" id="1_v7oki"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rtl8c"]
-radius = 4.0
+radius = 9.0
 
 [node name="Bullet" type="Area2D" unique_id=1821087071]
 collision_layer = 4

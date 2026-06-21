@@ -2,90 +2,73 @@
 
 [ext_resource type="Script" uid="uid://cf1pjhdre8qxw" path="res://scenes/player.gd" id="1_uwrxv"]
 [ext_resource type="Script" uid="uid://buwab80k2b1uu" path="res://scripts/weapons/weapon_controller.gd" id="2_lbhrr"]
-[ext_resource type="PackedScene" uid="uid://dc34qk1tb0qd4" path="res://scenes/wall.tscn" id="2_yqjtg"]
-[ext_resource type="PackedScene" uid="uid://dq3m3ar72vt3s" path="res://scenes/minion.tscn" id="3_lnu2h"]
+[ext_resource type="Texture2D" uid="uid://ku6amf6f0hqs" path="res://assets/characters/player/donni/donni_right_idle.png" id="3_donni_idle"]
 [ext_resource type="Script" uid="uid://dhcfmosatkft4" path="res://scripts/ui/weapon_hud.gd" id="5_iywne"]
 [ext_resource type="Script" uid="uid://8jvcovjqcbga" path="res://scripts/ui/pickup_hint_hud.gd" id="6_p57ef"]
 [ext_resource type="Script" uid="uid://cjck01aatw0wo" path="res://scripts/ui/action_message_hud.gd" id="7_0tnpc"]
-[ext_resource type="PackedScene" uid="uid://cnee866hbv5oq" path="res://scenes/weapons/weapon_pickup.tscn" id="7_u5sy4"]
-[ext_resource type="PackedScene" uid="uid://bg8u27pltsphw" path="res://scenes/items/ammo_pickup.tscn" id="8_gee14"]
-[ext_resource type="PackedScene" uid="uid://d2vecgpgxk1sq" path="res://scenes/ui/boss_hud.tscn" id="8_kvpfn"]
-[ext_resource type="Script" uid="uid://bhgrnv53fbrnp" path="res://scripts/managers/boss_spawner.gd" id="11_dinhu"]
+[ext_resource type="Script" uid="uid://wh48yonrprv3" path="res://scripts/ui/paper_preview_hud.gd" id="9_paper_hud"]
+[ext_resource type="Script" uid="uid://cqirn4wvll3q1" path="res://scripts/managers/arena_loader.gd" id="12_arena"]
+[ext_resource type="Script" uid="uid://cyxm8wlalmnsr" path="res://scripts/camera/smart_camera.gd" id="13_camera"]
 
-[sub_resource type="Gradient" id="Gradient_8cj0n"]
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_player_body"]
+radius = 18.0
+height = 68.0
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_uwrxv"]
-gradient = SubResource("Gradient_8cj0n")
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_yqjtg"]
-size = Vector2(64, 64)
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_gee14"]
+radius = 24.0
+height = 76.0
 
 [node name="Game" type="Node2D" unique_id=348633524]
+script = ExtResource("12_arena")
+
+[node name="ArenaContainer" type="Node2D" parent="." unique_id=627783405]
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1840671782]
+zoom = Vector2(0.75, 0.75)
+script = ExtResource("13_camera")
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1068410430 groups=["player"]]
 collision_layer = 2
+collision_mask = 9
+motion_mode = 1
 script = ExtResource("1_uwrxv")
 
 [node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=460823269]
-texture = SubResource("GradientTexture2D_uwrxv")
+texture_filter = 1
+texture = ExtResource("3_donni_idle")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=90433180]
-shape = SubResource("RectangleShape2D_yqjtg")
-
-[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1840671782]
-zoom = Vector2(0.75, 0.75)
-position_smoothing_enabled = true
-rotation_smoothing_enabled = true
+shape = SubResource("CapsuleShape2D_player_body")
 
 [node name="Muzzle" type="Marker2D" parent="Player" unique_id=1660981308]
 position = Vector2(16, 0)
 
 [node name="WeaponController" type="Node" parent="Player" unique_id=2124599871]
 script = ExtResource("2_lbhrr")
-max_inventory_slots = 9
 
-[node name="Walls" type="Node2D" parent="." unique_id=1646541533]
+[node name="Hurtbox" type="Area2D" parent="Player" unique_id=1243379446]
+collision_layer = 16
+collision_mask = 0
 
-[node name="WallTop" parent="Walls" unique_id=2110850654 instance=ExtResource("2_yqjtg")]
-position = Vector2(0, -1040)
-wall_size = Vector2(2160, 80)
-
-[node name="WallBottom" parent="Walls" unique_id=1124425469 instance=ExtResource("2_yqjtg")]
-position = Vector2(0, 1040)
-wall_size = Vector2(2160, 80)
-
-[node name="WallLeft" parent="Walls" unique_id=983406441 instance=ExtResource("2_yqjtg")]
-position = Vector2(-1040, 0)
-wall_size = Vector2(80, 2160)
-
-[node name="WallRight" parent="Walls" unique_id=1240511328 instance=ExtResource("2_yqjtg")]
-position = Vector2(1040, 0)
-wall_size = Vector2(80, 2160)
-
-[node name="Background" type="CanvasLayer" parent="." unique_id=514097501]
-layer = -10
-
-[node name="ColorRect" type="ColorRect" parent="Background" unique_id=1684155622]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -2000.0
-offset_top = -2000.0
-offset_right = 80.0
-offset_bottom = 920.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0.42133397, 0.44611454, 0.43636146, 1)
-
-[node name="Minion" parent="." unique_id=1783753798 groups=["enemy"] instance=ExtResource("3_lnu2h")]
-position = Vector2(300, 0)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=933943466]
+shape = SubResource("CapsuleShape2D_gee14")
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=60715672]
 
 [node name="WeaponHUD" type="Label" parent="UI" unique_id=262308976]
+visible = false
 offset_right = 40.0
 offset_bottom = 23.0
 script = ExtResource("5_iywne")
+
+[node name="PaperPreviewHUD" type="Control" parent="UI" unique_id=1435747261]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("9_paper_hud")
 
 [node name="PickupHintHUD" type="Label" parent="UI" unique_id=431496801]
 offset_right = 40.0
@@ -96,33 +79,3 @@ script = ExtResource("6_p57ef")
 offset_right = 40.0
 offset_bottom = 23.0
 script = ExtResource("7_0tnpc")
-
-[node name="BossHUD" parent="UI" unique_id=718993401 instance=ExtResource("8_kvpfn")]
-
-[node name="FinalOfferPickup" parent="." unique_id=1408864703 instance=ExtResource("7_u5sy4")]
-position = Vector2(0, -160)
-
-[node name="SecondAmendmentPickup" parent="." unique_id=1203065452 instance=ExtResource("7_u5sy4")]
-position = Vector2(0, 160)
-debug_weapon_id = "the_second_amendment"
-
-[node name="UniversalAmmoPickup" parent="." unique_id=369494240 instance=ExtResource("8_gee14")]
-position = Vector2(260, -80)
-
-[node name="ShotgunAmmoPickup" parent="." unique_id=200193175 instance=ExtResource("8_gee14")]
-position = Vector2(260, 80)
-ammo_type = "shotgun"
-
-[node name="RifleAmmoPickup" parent="." unique_id=226624756 instance=ExtResource("8_gee14")]
-position = Vector2(260, 200)
-ammo_type = "rifle"
-
-[node name="SidearmAmmoPickup" parent="." unique_id=1981171155 instance=ExtResource("8_gee14")]
-position = Vector2(260, 320)
-ammo_type = "sidearm"
-
-[node name="BossSpawner" type="Node" parent="." unique_id=568768563]
-script = ExtResource("11_dinhu")
-
-[node name="MainBossSpawnPoint" type="Marker2D" parent="BossSpawner" unique_id=1549005352]
-position = Vector2(666, 0)
