@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://bf4c3mdo845e0"]
+
+[ext_resource type="Script" uid="uid://d38fjm8f0rmub" path="res://scripts/bosses/sleepy_joe_agent.gd" id="1_agent"]
+[ext_resource type="Texture2D" uid="uid://6jfj6qfn5kan" path="res://assets/characters/bosses/sleepy_joe/miniboss/secret_service_agent.png" id="2_agent_texture"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 36.0
+height = 144.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_hurtbox"]
+radius = 48.0
+height = 144.0
+
+[node name="SleepyJoeAgent" type="CharacterBody2D" unique_id=328649762 groups=["enemy", "miniboss", "sleepy_joe_agent"]]
+collision_layer = 8
+collision_mask = 11
+motion_mode = 1
+script = ExtResource("1_agent")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1483381398]
+texture_filter = 1
+texture = ExtResource("2_agent_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=236923163]
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="." unique_id=1892017555]
+collision_layer = 8
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=987383727]
+shape = SubResource("CapsuleShape2D_hurtbox")

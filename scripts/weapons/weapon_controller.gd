@@ -18,6 +18,7 @@ var _initialized: bool = false
 
 var _shot_cooldown_left: float = 0.0
 var _reload_time_left: float = 0.0
+var _reload_duration: float = 0.0
 
 
 func _ready() -> void:
@@ -208,6 +209,7 @@ func _try_start_reload() -> void:
 		return
 
 	_reload_time_left = maxf(weapon.data.reload_time, 0.01)
+	_reload_duration = _reload_time_left
 
 	print("Reloading:", weapon.data.display_name)
 
@@ -219,6 +221,8 @@ func _finish_reload() -> void:
 		return
 
 	weapon.reload_to_full()
+	_reload_time_left = 0.0
+	_reload_duration = 0.0
 
 	print("Reloaded:", weapon.data.display_name, "Ammo:", weapon.get_ammo_text())
 
@@ -250,7 +254,8 @@ func _spawn_weapon_projectiles(weapon, shoot_direction: Vector2) -> void:
 				weapon.data.bullet_speed,
 				weapon.data.bullet_lifetime,
 				weapon.data.bullet_radius,
-				weapon.data.bullet_color
+				weapon.data.bullet_color,
+				weapon.data.bullet_texture_path
 			)
 
 		bullet.global_position = _get_muzzle_position(projectile_direction)
@@ -283,6 +288,7 @@ func pickup_weapon_instance(weapon_instance, pickup_position: Vector2 = Vector2.
 		if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
 			current_weapon_index = _find_weapon_index(duplicate_weapon)
 			_cancel_reload_and_shot_delay()
+			_auto_reload_current_weapon_if_empty()
 			_print_current_weapon()
 
 		return true
@@ -307,6 +313,7 @@ func _add_new_weapon_to_inventory_slot(weapon_instance, slot_index: int) -> void
 	if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
 		current_weapon_index = slot_index
 		_cancel_reload_and_shot_delay()
+		_auto_reload_current_weapon_if_empty()
 		_print_current_weapon()
 	else:
 		_show_action_message("Picked up %s, but it is too heavy for this Trump." % weapon_instance.data.display_name)
@@ -338,6 +345,7 @@ func _replace_current_weapon_with_pickup(weapon_instance, pickup_position: Vecto
 	_spawn_weapon_pickup_at(dropped_weapon, drop_position)
 
 	if weapon_instance.data.can_be_used_by_scale(_get_player_trump_scale()):
+		_auto_reload_current_weapon_if_empty()
 		_print_current_weapon()
 	else:
 		_switch_to_first_usable_weapon()
@@ -709,6 +717,7 @@ func _try_select_weapon_slot(slot_index: int) -> void:
 
 	current_weapon_index = slot_index
 	_cancel_reload_and_shot_delay()
+	_auto_reload_current_weapon_if_empty()
 
 	_print_current_weapon()
 
@@ -726,6 +735,7 @@ func _select_next_usable_weapon() -> void:
 		if _can_select_weapon_index(index):
 			current_weapon_index = index
 			_cancel_reload_and_shot_delay()
+			_auto_reload_current_weapon_if_empty()
 			_print_current_weapon()
 			return
 
@@ -748,6 +758,7 @@ func _select_previous_usable_weapon() -> void:
 		if _can_select_weapon_index(index):
 			current_weapon_index = index
 			_cancel_reload_and_shot_delay()
+			_auto_reload_current_weapon_if_empty()
 			_print_current_weapon()
 			return
 
@@ -784,6 +795,7 @@ func _switch_to_first_usable_weapon() -> void:
 		if weapon.data.can_be_used_by_scale(trump_scale):
 			current_weapon_index = i
 			_cancel_reload_and_shot_delay()
+			_auto_reload_current_weapon_if_empty()
 			_print_current_weapon()
 			return
 
@@ -808,7 +820,23 @@ func _can_current_weapon_be_replaced() -> bool:
 
 func _cancel_reload_and_shot_delay() -> void:
 	_reload_time_left = 0.0
+	_reload_duration = 0.0
 	_shot_cooldown_left = 0.0
+
+
+func _auto_reload_current_weapon_if_empty() -> void:
+	var weapon = _get_current_weapon()
+
+	if weapon == null:
+		return
+
+	if weapon.has_ammo_in_magazine():
+		return
+
+	if not weapon.can_reload():
+		return
+
+	_try_start_reload()
 
 
 func _get_current_weapon():
@@ -876,6 +904,13 @@ func get_current_ammo_text() -> String:
 
 func is_reloading() -> bool:
 	return _reload_time_left > 0.0
+
+
+func get_reload_progress() -> float:
+	if _reload_time_left <= 0.0 or _reload_duration <= 0.0:
+		return 0.0
+
+	return clampf(1.0 - (_reload_time_left / _reload_duration), 0.0, 1.0)
 
 
 func create_run_snapshot() -> Dictionary:

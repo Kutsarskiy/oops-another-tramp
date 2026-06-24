@@ -9,6 +9,8 @@ const WALL_COLLISION_LAYER_BIT: int = 0
 @export var start_shoot_delay: float = 1.5
 @export var keep_distance: float = 420.0
 @export var max_hp: int = 3
+@export var global_stun_damage_multiplier: float = 2.0
+@export var global_stun_tint: Color = Color(1.0, 0.58, 0.58, 1.0)
 
 @onready var sprite: Sprite2D = get_node_or_null("Sprite2D") as Sprite2D
 @onready var hurtbox: Area2D = get_node_or_null("Hurtbox") as Area2D
@@ -17,6 +19,8 @@ var hp: int
 var _shoot_cd: float = 0.0
 var _player: Node2D = null
 var BulletScene: PackedScene = preload("res://scenes/bullet.tscn")
+var _global_stun_left: float = 0.0
+var _base_stun_modulate: Color = Color.WHITE
 
 
 func _ready() -> void:
@@ -29,12 +33,19 @@ func _ready() -> void:
 
 	_configure_hurtbox()
 	_ensure_temp_texture()
+	if sprite != null:
+		_base_stun_modulate = sprite.modulate
 
 	_player = get_tree().get_first_node_in_group("player") as Node2D
 	_shoot_cd = start_shoot_delay
 
 
 func _physics_process(delta: float) -> void:
+	if _update_global_stun(delta):
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	if not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player") as Node2D
 		return
@@ -78,7 +89,7 @@ func _shoot(direction: Vector2) -> void:
 
 
 func take_damage(amount: int) -> void:
-	hp -= amount
+	hp -= ceili(_get_global_stun_modified_damage(amount))
 
 	if hp <= 0:
 		queue_free()
@@ -122,3 +133,39 @@ func _ensure_temp_texture() -> void:
 	image.fill_rect(Rect2i(24, 58, 24, 8), Color(0.28, 0.08, 0.10, 1.0))
 
 	sprite.texture = ImageTexture.create_from_image(image)
+
+
+func apply_global_stun(duration: float) -> void:
+	_global_stun_left = maxf(_global_stun_left, duration)
+	_set_global_stun_visual(true)
+
+
+func _update_global_stun(delta: float) -> bool:
+	if _global_stun_left <= 0.0:
+		return false
+
+	_global_stun_left = maxf(_global_stun_left - delta, 0.0)
+
+	if _global_stun_left <= 0.0:
+		_set_global_stun_visual(false)
+
+	return true
+
+
+func _get_global_stun_modified_damage(amount: int) -> float:
+	var final_amount := float(amount)
+
+	if _global_stun_left > 0.0:
+		final_amount *= global_stun_damage_multiplier
+
+	return final_amount
+
+
+func _set_global_stun_visual(is_enabled: bool) -> void:
+	if sprite == null:
+		return
+
+	if is_enabled:
+		sprite.modulate = _base_stun_modulate * global_stun_tint
+	else:
+		sprite.modulate = _base_stun_modulate

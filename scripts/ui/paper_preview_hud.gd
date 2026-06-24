@@ -59,7 +59,8 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 	_font = SystemFont.new()
-	_font.font_names = PackedStringArray(["Terminal", "Fixedsys", "Consolas", "Courier New"])
+	_font.font_names = PackedStringArray(["Segoe UI Semibold", "Arial Bold", "Consolas", "Courier New"])
+	_font.font_weight = 600
 
 	_boss_name_short = _load_texture_or_null(boss_name_short_texture_path)
 	_boss_name_medium = _load_texture_or_null(boss_name_medium_texture_path)

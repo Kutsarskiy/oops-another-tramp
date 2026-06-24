@@ -4,18 +4,38 @@ extends Area2D
 @export var lifetime: float = 1.45
 @export var radius: float = 9.0
 @export var color: Color = Color(1.0, 0.72, 0.18)
+@export var texture_path: String = ""
+@export var split_on_impact: bool = false
+@export var split_on_timeout: bool = false
+@export var split_count: int = 0
+@export var split_projectile_texture_path: String = ""
+@export var split_projectile_speed: float = 360.0
+@export var split_projectile_lifetime: float = 2.0
+@export var split_projectile_bounces: int = 0
+@export var bounces_remaining: int = 0
+@export var evaporate_duration: float = 0.25
+@export var evaporate_scale_multiplier: float = 1.5
+@export var evaporate_jitter: float = 4.0
 
 @export var damage: int = 1
 @export var team: StringName = &"player" # "player" или "enemy"
 
+@onready var sprite: Sprite2D = get_node_or_null("Sprite2D") as Sprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 var direction: Vector2 = Vector2.RIGHT
 var _time_left: float
+var _texture: Texture2D = null
+var _texture_content_fit_scale: float = 1.0
+var _is_evaporating: bool = false
+var _evaporate_time_left: float = 0.0
+var _evaporate_duration: float = 0.0
+var _base_visual_scale: Vector2 = Vector2.ONE
 
 
 func _ready() -> void:
 	_time_left = lifetime
+	_sync_texture_sprite()
 	_apply_collision_radius()
 
 	body_entered.connect(_on_body_entered)
@@ -25,18 +45,42 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _is_evaporating:
+		_update_evaporation(delta)
+		return
+
 	global_position += direction * speed * delta
 
 	_time_left -= delta
 
 	if _time_left <= 0.0:
+		if split_on_timeout:
+			_split_projectile()
 		queue_free()
 
 
 func _draw() -> void:
+	var draw_scale := 1.0
+
+	if _is_evaporating:
+		var progress := 1.0 - _evaporate_time_left / _evaporate_duration
+		draw_scale = lerpf(evaporate_scale_multiplier, evaporate_scale_multiplier * 1.12, progress)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * draw_scale)
+
+	if _texture != null and sprite == null:
+		var texture_size := _texture.get_size()
+		draw_texture(_texture, -texture_size * 0.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
+
+	if sprite != null and sprite.visible:
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
+
 	draw_circle(Vector2.ZERO, radius + 3.0, Color(color.r, color.g, color.b, 0.18))
 	draw_circle(Vector2.ZERO, radius, color)
 	draw_circle(Vector2(-radius * 0.28, -radius * 0.28), radius * 0.32, Color(1.0, 0.95, 0.62, 0.85))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func configure_projectile(
@@ -44,13 +88,17 @@ func configure_projectile(
 	new_speed: float,
 	new_lifetime: float,
 	new_radius: float,
-	new_color: Color
+	new_color: Color,
+	new_texture_path: String = ""
 ) -> void:
 	damage = new_damage
 	speed = new_speed
 	lifetime = new_lifetime
 	radius = new_radius
 	color = new_color
+	texture_path = new_texture_path
+	_load_projectile_texture()
+	_sync_texture_sprite()
 
 	_apply_collision_radius()
 	queue_redraw()
@@ -59,6 +107,8 @@ func configure_projectile(
 func setup_bullet(is_enemy: bool) -> void:
 	if is_enemy:
 		team = &"enemy"
+		add_to_group("enemy_bullet")
+		remove_from_group("player_bullet")
 
 		# Слой 1 — стены.
 		# Слой 5 — PlayerHurtbox.
@@ -70,6 +120,8 @@ func setup_bullet(is_enemy: bool) -> void:
 		color = Color(1.0, 0.52, 0.16)
 	else:
 		team = &"player"
+		add_to_group("player_bullet")
+		remove_from_group("enemy_bullet")
 
 		# Слой 1 — стены.
 		# Слой 4 — враги.
@@ -78,10 +130,33 @@ func setup_bullet(is_enemy: bool) -> void:
 		color = Color(1.0, 0.78, 0.20)
 
 	_apply_collision_radius()
+	_sync_texture_sprite()
 	queue_redraw()
 
 
+func configure_split_projectile(
+	new_split_texture_path: String,
+	new_split_count: int,
+	new_split_speed: float,
+	new_split_lifetime: float,
+	new_split_bounces: int,
+	should_split_on_impact: bool = true,
+	should_split_on_timeout: bool = true
+) -> void:
+	split_projectile_texture_path = new_split_texture_path
+	split_count = new_split_count
+	split_projectile_speed = new_split_speed
+	split_projectile_lifetime = new_split_lifetime
+	split_projectile_bounces = new_split_bounces
+	split_on_impact = should_split_on_impact
+	split_on_timeout = should_split_on_timeout
+
+
 func _apply_collision_radius() -> void:
+	if _texture != null:
+		var texture_size := _texture.get_size()
+		radius = maxf(texture_size.x, texture_size.y) * 0.5
+
 	if collision_shape == null:
 		return
 
@@ -93,12 +168,152 @@ func _apply_collision_radius() -> void:
 	circle_shape.radius = radius
 
 
+func _load_projectile_texture() -> void:
+	_texture = null
+	_texture_content_fit_scale = 1.0
+
+	if texture_path.is_empty():
+		return
+
+	if ResourceLoader.exists(texture_path):
+		var resource := load(texture_path)
+
+		if resource is Texture2D:
+			_texture = resource as Texture2D
+			_texture_content_fit_scale = _calculate_texture_content_fit_scale(_texture)
+			return
+
+	var image := Image.new()
+	var error := image.load(texture_path)
+
+	if error != OK:
+		push_warning("Projectile texture failed to load: %s" % texture_path)
+		return
+
+	_texture = ImageTexture.create_from_image(image)
+	_texture_content_fit_scale = _calculate_texture_content_fit_scale(_texture)
+
+
+func _sync_texture_sprite() -> void:
+	if sprite == null:
+		return
+
+	if _texture == null:
+		sprite.visible = false
+		sprite.scale = Vector2.ONE
+		return
+
+	sprite.visible = true
+	sprite.texture = _texture
+	_base_visual_scale = Vector2.ONE * _texture_content_fit_scale
+	sprite.scale = _base_visual_scale
+
+
+func evaporate() -> void:
+	if _is_evaporating:
+		return
+
+	_is_evaporating = true
+	_evaporate_duration = maxf(evaporate_duration, 0.01)
+	_evaporate_time_left = _evaporate_duration
+	speed = 0.0
+	split_on_impact = false
+	split_on_timeout = false
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
+
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
+
+	if sprite != null:
+		_base_visual_scale = sprite.scale
+
+	queue_redraw()
+
+
+func _update_evaporation(delta: float) -> void:
+	_evaporate_time_left = maxf(_evaporate_time_left - delta, 0.0)
+	var progress := 1.0 - _evaporate_time_left / _evaporate_duration
+	var alpha := 1.0 - progress
+	var scale_value := lerpf(evaporate_scale_multiplier, evaporate_scale_multiplier * 1.12, progress)
+	var jitter := Vector2(
+		randf_range(-evaporate_jitter, evaporate_jitter),
+		randf_range(-evaporate_jitter, evaporate_jitter)
+	) * alpha
+
+	if sprite != null:
+		sprite.modulate = Color(0.88, 0.88, 0.88, alpha)
+		sprite.scale = _base_visual_scale * scale_value
+		sprite.position = jitter
+	else:
+		color = Color(0.88, 0.88, 0.88, alpha)
+		queue_redraw()
+
+	if _evaporate_time_left <= 0.0:
+		queue_free()
+
+
+func _calculate_texture_content_fit_scale(texture: Texture2D) -> float:
+	var image := texture.get_image()
+
+	if image == null:
+		return 1.0
+
+	var image_size := image.get_size()
+
+	if image_size.x <= 0 or image_size.y <= 0:
+		return 1.0
+
+	var min_position := image_size
+	var max_position := Vector2i(-1, -1)
+
+	for y in range(image_size.y):
+		for x in range(image_size.x):
+			if image.get_pixel(x, y).a <= 0.01:
+				continue
+
+			min_position.x = mini(min_position.x, x)
+			min_position.y = mini(min_position.y, y)
+			max_position.x = maxi(max_position.x, x)
+			max_position.y = maxi(max_position.y, y)
+
+	if max_position.x < min_position.x or max_position.y < min_position.y:
+		return 1.0
+
+	var content_size := Vector2(
+		float(max_position.x - min_position.x + 1),
+		float(max_position.y - min_position.y + 1)
+	)
+
+	if content_size.x <= 0.0 or content_size.y <= 0.0:
+		return 1.0
+
+	var fit_scale := minf(
+		float(image_size.x) / content_size.x,
+		float(image_size.y) / content_size.y
+	)
+
+	return maxf(fit_scale, 1.0)
+
+
 func _on_body_entered(body: Node) -> void:
 	if body.is_in_group(team):
 		return
 
 	if body.has_method("take_damage"):
 		body.call("take_damage", damage)
+		queue_free()
+		return
+
+	if split_on_impact:
+		_split_projectile()
+		queue_free()
+		return
+
+	if bounces_remaining > 0:
+		bounces_remaining -= 1
+		direction = direction.bounce(_get_surface_normal(body)).normalized()
+		return
 
 	queue_free()
 
@@ -135,3 +350,53 @@ func _get_damage_target_from_area(area: Area2D) -> Node:
 		return parent_node
 
 	return null
+
+
+func _split_projectile() -> void:
+	if split_count <= 0:
+		return
+
+	var parent_node := get_parent()
+
+	if parent_node == null:
+		return
+
+	var bullet_scene := load("res://scenes/bullet.tscn") as PackedScene
+
+	if bullet_scene == null:
+		return
+
+	var base_angle := randf_range(0.0, TAU)
+
+	for i in range(split_count):
+		var bullet := bullet_scene.instantiate()
+
+		if bullet == null:
+			continue
+
+		parent_node.add_child(bullet)
+		bullet.global_position = global_position
+		bullet.setup_bullet(team == &"enemy")
+		bullet.direction = Vector2.RIGHT.rotated(base_angle + TAU * float(i) / float(split_count))
+		bullet.bounces_remaining = split_projectile_bounces
+		bullet.configure_projectile(
+			damage,
+			split_projectile_speed,
+			split_projectile_lifetime,
+			radius,
+			color,
+			split_projectile_texture_path
+		)
+
+
+func _get_surface_normal(body: Node) -> Vector2:
+	if body is Node2D:
+		var from_body := global_position - (body as Node2D).global_position
+
+		if absf(from_body.x) > absf(from_body.y):
+			return Vector2(signf(from_body.x), 0.0)
+
+		if absf(from_body.y) > 0.001:
+			return Vector2(0.0, signf(from_body.y))
+
+	return -direction.normalized()

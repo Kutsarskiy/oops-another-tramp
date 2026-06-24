@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 
 RunManager="*uid://rapr55bc50mg"
 BossManager="*uid://cs4gxfsfy013j"
+HitStop="*res://scripts/managers/hit_stop.gd"
 
 [display]
 

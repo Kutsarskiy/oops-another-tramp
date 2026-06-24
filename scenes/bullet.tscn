@@ -1,6 +1,7 @@
-[gd_scene format=3 uid="uid://bk0atyhwksxmi"]
+[gd_scene load_steps=4 format=3 uid="uid://bk0atyhwksxmi"]
 
 [ext_resource type="Script" uid="uid://bdgl803b0l8ud" path="res://scenes/bullet.gd" id="1_v7oki"]
+[ext_resource type="Texture2D" path="res://assets/projectiles/player/shot_medium.png" id="2_shot_medium"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rtl8c"]
 radius = 9.0
@@ -8,6 +9,10 @@ radius = 9.0
 [node name="Bullet" type="Area2D" unique_id=1821087071]
 collision_layer = 4
 script = ExtResource("1_v7oki")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=197167181]
+texture_filter = 1
+texture = ExtResource("2_shot_medium")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1360118746]
 shape = SubResource("CircleShape2D_rtl8c")

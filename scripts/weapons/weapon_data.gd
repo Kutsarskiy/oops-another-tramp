@@ -19,6 +19,7 @@ class_name WeaponData
 @export var spread_degrees: float = 0.0
 @export var bullet_radius: float = 4.0
 @export var bullet_color: Color = Color(1.0, 0.9, 0.2)
+@export var bullet_texture_path: String = ""
 
 @export var magazine_size: int = 12
 @export var reserve_ammo: int = 0
@@ -64,6 +65,7 @@ static func create_the_negotiator():
 	data.spread_degrees = 0.0
 	data.bullet_radius = 4.0
 	data.bullet_color = Color(1.0, 0.9, 0.2)
+	data.bullet_texture_path = "res://assets/projectiles/player/shot_medium.png"
 
 	data.magazine_size = 12
 	data.reserve_ammo = 0
@@ -102,6 +104,7 @@ static func create_the_final_offer():
 	data.spread_degrees = 32.0
 	data.bullet_radius = 3.5
 	data.bullet_color = Color(1.0, 0.55, 0.2)
+	data.bullet_texture_path = "res://assets/projectiles/player/shot_small.png"
 
 	data.magazine_size = 8
 	data.reserve_ammo = 192
@@ -140,6 +143,7 @@ static func create_the_second_amendment():
 	data.spread_degrees = 5.0
 	data.bullet_radius = 3.5
 	data.bullet_color = Color(0.85, 0.9, 1.0)
+	data.bullet_texture_path = "res://assets/projectiles/player/shot_large.png"
 
 	data.magazine_size = 30
 	data.reserve_ammo = 900

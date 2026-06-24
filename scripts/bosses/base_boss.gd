@@ -16,10 +16,19 @@ signal boss_defeated
 @export var boss_name: String = "Base Boss"
 @export var boss_max_hp: float = 100.0
 @export var can_take_damage_before_fight: bool = false
+@export var global_stun_damage_multiplier: float = 2.0
+@export var global_stun_tint: Color = Color(1.0, 0.58, 0.58, 1.0)
+@export var boss_defeat_enemy_burn_tint: Color = Color(1.0, 0.18, 0.18, 1.0)
+@export var boss_defeat_enemy_burn_duration: float = 0.5
+@export var boss_defeat_enemy_evaporate_duration: float = 0.5
 
 var current_phase: int = 1
 var fight_started: bool = false
 var defeated: bool = false
+var _global_stun_left: float = 0.0
+var _attack_controller_was_active_before_stun: bool = false
+var _stun_sprite: Sprite2D = null
+var _base_stun_modulate: Color = Color.WHITE
 
 var phase_thresholds: Dictionary = {
 	2: 0.50
@@ -40,6 +49,7 @@ func _ready() -> void:
 	_configure_hurtbox()
 
 	super()
+	_configure_global_stun_visual()
 
 
 func begin_intro() -> void:
@@ -61,7 +71,7 @@ func take_damage(amount: int) -> void:
 	if not fight_started and not can_take_damage_before_fight:
 		return
 
-	current_hp -= amount
+	current_hp -= _get_global_stun_modified_damage(amount)
 	damaged.emit(amount)
 
 	if current_hp <= 0.0:
@@ -101,14 +111,173 @@ func die() -> void:
 
 	defeated = true
 	fight_started = false
+	_trigger_boss_defeat_feedback()
+	_burn_and_remove_enemy(self)
 
 	boss_defeated.emit()
-
-	super()
+	died.emit()
 
 
 func is_fight_active() -> bool:
 	return fight_started and not defeated
+
+
+func apply_global_stun(duration: float) -> void:
+	var was_already_stunned := is_globally_stunned()
+	_global_stun_left = maxf(_global_stun_left, duration)
+
+	var attack_controller := get_node_or_null("AttackController")
+
+	if attack_controller != null and attack_controller.has_method("set_active"):
+		if not was_already_stunned:
+			_attack_controller_was_active_before_stun = bool(attack_controller.get("active"))
+
+		attack_controller.call("set_active", false)
+
+	_set_global_stun_visual(true)
+
+
+func is_globally_stunned() -> bool:
+	return _global_stun_left > 0.0
+
+
+func _update_global_stun(delta: float) -> bool:
+	if _global_stun_left <= 0.0:
+		return false
+
+	_global_stun_left = maxf(_global_stun_left - delta, 0.0)
+
+	if _global_stun_left <= 0.0:
+		var attack_controller := get_node_or_null("AttackController")
+
+		if attack_controller != null and attack_controller.has_method("set_active"):
+			attack_controller.call("set_active", _attack_controller_was_active_before_stun and is_fight_active())
+
+		_set_global_stun_visual(false)
+
+	return true
+
+
+func _get_global_stun_modified_damage(amount: int) -> float:
+	var final_amount := float(amount)
+
+	if is_globally_stunned():
+		final_amount *= global_stun_damage_multiplier
+
+	return final_amount
+
+
+func _configure_global_stun_visual() -> void:
+	_stun_sprite = get_node_or_null("Sprite2D") as Sprite2D
+
+	if _stun_sprite != null:
+		_base_stun_modulate = _stun_sprite.modulate
+
+
+func _set_global_stun_visual(is_enabled: bool) -> void:
+	if _stun_sprite == null:
+		return
+
+	if is_enabled:
+		_stun_sprite.modulate = _base_stun_modulate * global_stun_tint
+	else:
+		_stun_sprite.modulate = _base_stun_modulate
+
+
+func _trigger_boss_defeat_feedback() -> void:
+	var player := get_tree().get_first_node_in_group("player")
+
+	if player != null and player.has_method("play_boss_defeat_feedback"):
+		player.call("play_boss_defeat_feedback")
+
+	_evaporate_all_bullets()
+	_burn_and_remove_all_enemies()
+
+
+func _evaporate_all_bullets() -> void:
+	for group_name in ["enemy_bullet", "player_bullet"]:
+		for bullet in get_tree().get_nodes_in_group(group_name):
+			if not is_instance_valid(bullet):
+				continue
+
+			if bullet.has_method("evaporate"):
+				bullet.call("evaporate")
+			else:
+				bullet.queue_free()
+
+
+func _burn_and_remove_all_enemies() -> void:
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if enemy == self or not is_instance_valid(enemy):
+			continue
+
+		_burn_and_remove_enemy(enemy)
+
+
+func _burn_and_remove_enemy(enemy: Node) -> void:
+	if enemy.has_method("begin_boss_defeat_vanish"):
+		enemy.call("begin_boss_defeat_vanish")
+
+	if enemy.has_method("apply_global_stun"):
+		enemy.call(
+			"apply_global_stun",
+			boss_defeat_enemy_burn_duration + boss_defeat_enemy_evaporate_duration
+		)
+
+	var enemy_sprite := enemy.get_node_or_null("Sprite2D") as Sprite2D
+
+	if enemy_sprite != null:
+		enemy_sprite.modulate = boss_defeat_enemy_burn_tint
+
+	var collision_object := enemy as CollisionObject2D
+
+	if collision_object != null:
+		collision_object.set_deferred("collision_layer", 0)
+		collision_object.set_deferred("collision_mask", 0)
+
+	var enemy_ref: WeakRef = weakref(enemy)
+	var timer := get_tree().create_timer(boss_defeat_enemy_burn_duration)
+	timer.timeout.connect(func() -> void:
+		var enemy_node := enemy_ref.get_ref() as Node
+
+		if enemy_node != null:
+			_evaporate_enemy(enemy_node)
+	)
+
+
+func _evaporate_enemy(enemy: Node) -> void:
+	if not is_instance_valid(enemy):
+		return
+
+	var enemy_sprite := enemy.get_node_or_null("Sprite2D") as Sprite2D
+	var enemy_node_2d := enemy as Node2D
+	var duration := maxf(boss_defeat_enemy_evaporate_duration, 0.01)
+
+	if enemy_sprite != null:
+		var tween := enemy.create_tween()
+		var enemy_ref: WeakRef = weakref(enemy)
+		tween.set_parallel(true)
+		tween.tween_property(enemy_sprite, "modulate:a", 0.0, duration)
+
+		if enemy_node_2d != null:
+			tween.tween_property(enemy_node_2d, "scale", enemy_node_2d.scale * 1.12, duration)
+
+		tween.finished.connect(func() -> void:
+			var enemy_node := enemy_ref.get_ref() as Node
+
+			if enemy_node != null:
+				enemy_node.queue_free()
+		)
+		return
+
+	var enemy_ref: WeakRef = weakref(enemy)
+	var timer := get_tree().create_timer(duration)
+	timer.timeout.connect(func() -> void:
+		var enemy_node := enemy_ref.get_ref() as Node
+
+		if enemy_node != null:
+			enemy_node.queue_free()
+	)
 
 
 func _configure_hurtbox() -> void:

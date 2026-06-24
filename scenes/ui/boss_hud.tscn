@@ -30,6 +30,39 @@ layout_mode = 2
 value = 100.0
 show_percentage = false
 
+[node name="MiniBossBars" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AgentARow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/MiniBossBars"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="MarginContainer/VBoxContainer/MiniBossBars/AgentARow"]
+custom_minimum_size = Vector2(86, 0)
+layout_mode = 2
+text = "Agent A"
+
+[node name="Bar" type="ProgressBar" parent="MarginContainer/VBoxContainer/MiniBossBars/AgentARow"]
+custom_minimum_size = Vector2(610, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+show_percentage = false
+
+[node name="AgentBRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/MiniBossBars"]
+layout_mode = 2
+
+[node name="Name" type="Label" parent="MarginContainer/VBoxContainer/MiniBossBars/AgentBRow"]
+custom_minimum_size = Vector2(86, 0)
+layout_mode = 2
+text = "Agent B"
+
+[node name="Bar" type="ProgressBar" parent="MarginContainer/VBoxContainer/MiniBossBars/AgentBRow"]
+custom_minimum_size = Vector2(610, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+show_percentage = false
+
 [node name="PhaseLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1039480630]
 layout_mode = 2
 text = "Phase 1"

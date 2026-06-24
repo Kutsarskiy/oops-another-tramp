@@ -10,6 +10,11 @@ const PaperStateSpriteScript: Script = preload("res://scripts/visuals/paper_stat
 @export var recoil_decay_speed: float = 1200.0
 @export var paper_shadow_offset: Vector2 = Vector2(5.0, 6.0)
 @export var paper_shadow_color: Color = Color(0.0, 0.0, 0.0, 0.32)
+@export var reload_indicator_offset: Vector2 = Vector2(-22.0, -58.0)
+@export var reload_indicator_size: Vector2 = Vector2(44.0, 5.0)
+@export var reload_indicator_color: Color = Color.WHITE
+@export var reload_indicator_line_width: float = 2.0
+@export var reload_indicator_cap_height: float = 9.0
 
 @export var paper_state_texture_paths: Dictionary = {
 	&"idle": "res://assets/characters/player/donni/donni_right_idle.png",
@@ -19,6 +24,10 @@ const PaperStateSpriteScript: Script = preload("res://scripts/visuals/paper_stat
 	&"the_negotiator": {
 		&"idle": "res://assets/characters/player/donni/weapons/the_negotiator/idle_right.png",
 		&"run": "res://assets/characters/player/donni/weapons/the_negotiator/run_right.png"
+	},
+	&"the_second_amendment": {
+		&"idle": "res://assets/characters/player/donni/weapons/the_second_amendment/idle_right.png",
+		&"run": "res://assets/characters/player/donni/weapons/the_second_amendment/run_right.png"
 	}
 }
 
@@ -39,9 +48,23 @@ var _blink_timer: float = 0.0
 var _is_game_over: bool = false
 
 @export var dash_speed: float = 600.0
-@export var dash_duration: float = 0.2
+@export var dash_duration: float = 0.25
 @export var dash_cooldown: float = 0.5
+@export var after_dash_invulnerability: float = 0.25
 @export var after_dash_shoot_lock: float = 0.5
+@export var enemy_stun_on_hit_duration: float = 2.0
+@export var damage_flash_duration: float = 0.25
+@export var damage_flash_color: Color = Color(1.0, 0.0, 0.0, 0.28)
+@export var damage_camera_shake_duration: float = 0.25
+@export var damage_camera_shake_strength: float = 8.0
+@export var damage_hit_stop_duration: float = 0.1
+@export var boss_defeat_flash_duration: float = 1.0
+@export var boss_defeat_flash_color: Color = Color(1.0, 1.0, 1.0, 0.82)
+@export var boss_defeat_camera_shake_duration: float = 1.0
+@export var boss_defeat_camera_shake_strength: float = 12.0
+@export var boss_defeat_hit_stop_duration: float = 0.1
+@export var boss_defeat_player_tint_duration: float = 0.0
+@export var boss_defeat_player_tint: Color = Color(1.0, 0.2, 0.2, 1.0)
 
 var _dash_time_left: float = 0.0
 var _dash_cooldown_left: float = 0.0
@@ -89,6 +112,11 @@ var _shoot_lock_left: float = 0.0
 
 var _paper_visual = PaperStateSpriteScript.new()
 var _paper_shadow_sprite: Sprite2D = null
+var _reload_indicator: Node2D = null
+var _reload_indicator_back_line: ColorRect = null
+var _reload_indicator_left_cap: ColorRect = null
+var _reload_indicator_right_cap: ColorRect = null
+var _reload_indicator_fill: ColorRect = null
 var _recoil_velocity: Vector2 = Vector2.ZERO
 var _camera_movement_velocity: Vector2 = Vector2.ZERO
 var _base_collision_shape_position: Vector2 = Vector2.ZERO
@@ -99,12 +127,18 @@ var _shot_cooldown_left: float = 0.0
 var _shoot_state_left: float = 0.0
 var _screen_shake_time_left: float = 0.0
 var _screen_shake_strength_left: float = 0.0
+var _damage_flash_rect: ColorRect = null
+var _damage_flash_time_left: float = 0.0
+var _damage_flash_duration: float = 0.0
+var _boss_defeat_tint_left: float = 0.0
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_configure_damage_flash()
 	_configure_paper_shadow()
+	_configure_reload_indicator()
 
 	add_to_group("player")
 	z_index = 10
@@ -159,6 +193,9 @@ func _physics_process(delta: float) -> void:
 	_update_recoil(delta)
 	_update_paper_visual(visual_direction, is_running)
 	_update_camera_shake(delta)
+	_update_boss_defeat_tint(delta)
+	_update_damage_flash(delta)
+	_update_reload_indicator()
 
 
 func _get_movement_input_direction() -> Vector2:
@@ -248,6 +285,74 @@ func _update_paper_shadow() -> void:
 	_paper_shadow_sprite.position = sprite.position + paper_shadow_offset
 
 
+func _configure_reload_indicator() -> void:
+	_reload_indicator = Node2D.new()
+	_reload_indicator.name = "ReloadIndicator"
+	_reload_indicator.visible = false
+	_reload_indicator.z_index = 50
+	add_child(_reload_indicator)
+
+	_reload_indicator_left_cap = ColorRect.new()
+	_reload_indicator_left_cap.name = "LeftCap"
+	_reload_indicator.add_child(_reload_indicator_left_cap)
+
+	_reload_indicator_right_cap = ColorRect.new()
+	_reload_indicator_right_cap.name = "RightCap"
+	_reload_indicator.add_child(_reload_indicator_right_cap)
+
+	_reload_indicator_back_line = ColorRect.new()
+	_reload_indicator_back_line.name = "BackLine"
+	_reload_indicator.add_child(_reload_indicator_back_line)
+
+	_reload_indicator_fill = ColorRect.new()
+	_reload_indicator_fill.name = "Fill"
+	_reload_indicator.add_child(_reload_indicator_fill)
+
+	_update_reload_indicator()
+
+
+func _update_reload_indicator() -> void:
+	if _reload_indicator == null or weapon_controller == null:
+		return
+
+	var is_reloading := false
+	var reload_progress := 0.0
+
+	if weapon_controller.has_method("is_reloading"):
+		is_reloading = bool(weapon_controller.call("is_reloading"))
+
+	if is_reloading and weapon_controller.has_method("get_reload_progress"):
+		reload_progress = float(weapon_controller.call("get_reload_progress"))
+
+	_reload_indicator.visible = is_reloading
+	_reload_indicator.position = reload_indicator_offset
+
+	var line_width := maxf(reload_indicator_line_width, 1.0)
+	var cap_height := maxf(reload_indicator_cap_height, line_width)
+	var line_y := (cap_height - line_width) * 0.5
+	var inner_width := maxf(reload_indicator_size.x - line_width * 2.0, 0.0)
+
+	for rect in [_reload_indicator_left_cap, _reload_indicator_right_cap, _reload_indicator_back_line, _reload_indicator_fill]:
+		rect.color = reload_indicator_color
+
+	_reload_indicator_left_cap.position = Vector2.ZERO
+	_reload_indicator_left_cap.size = Vector2(line_width, cap_height)
+
+	_reload_indicator_right_cap.position = Vector2(reload_indicator_size.x - line_width, 0.0)
+	_reload_indicator_right_cap.size = Vector2(line_width, cap_height)
+
+	_reload_indicator_back_line.position = Vector2(line_width, line_y)
+	_reload_indicator_back_line.size = Vector2(inner_width, line_width)
+
+	_reload_indicator_fill.position = Vector2(line_width, line_y)
+	_reload_indicator_fill.size = Vector2(
+		line_width,
+		cap_height
+	)
+	_reload_indicator_fill.position.x = line_width + maxf(inner_width - line_width, 0.0) * clampf(reload_progress, 0.0, 1.0)
+	_reload_indicator_fill.position.y = 0.0
+
+
 func _build_paper_state_texture_paths() -> Dictionary:
 	var texture_paths := paper_state_texture_paths.duplicate()
 
@@ -297,6 +402,9 @@ func take_damage(_amount: int) -> void:
 		return
 
 	_set_invulnerable(after_hit_invulnerability)
+	_play_damage_feedback()
+	_clear_enemy_bullets()
+	_stun_all_enemies()
 	_lose_current_form()
 
 
@@ -348,6 +456,7 @@ func _apply_current_form() -> void:
 	var c: Color = sprite.modulate
 	c.a = 1.0
 	sprite.modulate = c
+	_apply_player_modulate()
 
 
 func _get_current_scale() -> float:
@@ -604,22 +713,12 @@ func _set_invulnerable(duration: float) -> void:
 
 func _update_invulnerability(delta: float) -> void:
 	if _invulnerability_left <= 0.0:
-		var normal_color: Color = sprite.modulate
-		normal_color.a = 1.0
-		sprite.modulate = normal_color
+		_apply_player_modulate()
 		return
 
 	_invulnerability_left = maxf(_invulnerability_left - delta, 0.0)
 	_blink_timer += delta
-
-	var c: Color = sprite.modulate
-
-	if int(_blink_timer * 16.0) % 2 == 0:
-		c.a = 0.45
-	else:
-		c.a = 1.0
-
-	sprite.modulate = c
+	_apply_player_modulate()
 
 
 func _update_dash_timers(delta: float) -> void:
@@ -647,7 +746,7 @@ func _try_start_dash(movement_direction: Vector2) -> void:
 	_dash_time_left = dash_duration
 	_dash_cooldown_left = dash_cooldown
 	_shoot_lock_left = dash_duration + after_dash_shoot_lock
-	_set_invulnerable(dash_duration)
+	_set_invulnerable(dash_duration + after_dash_invulnerability)
 
 	print("DASH")
 
@@ -682,3 +781,128 @@ func _debug_print_state(reason: String) -> void:
 	if weapon_controller != null:
 		print("Weapon:", weapon_controller.get_current_weapon_name())
 		print("Ammo:", weapon_controller.get_current_ammo_text())
+
+
+func _clear_enemy_bullets() -> void:
+	for bullet in get_tree().get_nodes_in_group("enemy_bullet"):
+		if is_instance_valid(bullet):
+			if bullet.has_method("evaporate"):
+				bullet.call("evaporate")
+			else:
+				bullet.queue_free()
+
+
+func _stun_all_enemies() -> void:
+	for enemy in get_tree().get_nodes_in_group("enemy"):
+		if enemy == self:
+			continue
+
+		if enemy.has_method("apply_global_stun"):
+			enemy.call("apply_global_stun", enemy_stun_on_hit_duration)
+
+
+func _play_damage_feedback() -> void:
+	_play_hit_stop(damage_hit_stop_duration)
+	_play_screen_flash(damage_flash_color, damage_flash_duration)
+
+	_screen_shake_time_left = maxf(_screen_shake_time_left, damage_camera_shake_duration)
+	_screen_shake_strength_left = maxf(_screen_shake_strength_left, damage_camera_shake_strength)
+
+
+func play_boss_defeat_feedback() -> void:
+	_play_hit_stop(boss_defeat_hit_stop_duration)
+	_play_screen_flash(boss_defeat_flash_color, boss_defeat_flash_duration)
+	_screen_shake_time_left = maxf(_screen_shake_time_left, boss_defeat_camera_shake_duration)
+	_screen_shake_strength_left = maxf(_screen_shake_strength_left, boss_defeat_camera_shake_strength)
+	_boss_defeat_tint_left = boss_defeat_player_tint_duration
+	_apply_player_modulate()
+
+
+func play_phase_transition_feedback(duration: float = 1.0, strength: float = 9.0) -> void:
+	_screen_shake_time_left = maxf(_screen_shake_time_left, duration)
+	_screen_shake_strength_left = maxf(_screen_shake_strength_left, strength)
+
+
+func _play_screen_flash(flash_color: Color, duration: float) -> void:
+	_damage_flash_duration = maxf(duration, 0.01)
+	_damage_flash_time_left = _damage_flash_duration
+
+	if _damage_flash_rect != null:
+		_damage_flash_rect.visible = true
+		_damage_flash_rect.color = flash_color
+
+
+func _play_hit_stop(duration: float) -> void:
+	if has_node("/root/HitStop"):
+		get_node("/root/HitStop").call("trigger", duration)
+
+
+func _configure_damage_flash() -> void:
+	var game_root := get_tree().current_scene
+
+	if game_root == null:
+		return
+
+	var ui_layer := game_root.get_node_or_null("UI")
+
+	if ui_layer == null:
+		return
+
+	_damage_flash_rect = ui_layer.get_node_or_null("DamageFlash") as ColorRect
+
+	if _damage_flash_rect == null:
+		_damage_flash_rect = ColorRect.new()
+		_damage_flash_rect.name = "DamageFlash"
+		ui_layer.add_child(_damage_flash_rect)
+
+	_damage_flash_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_damage_flash_rect.offset_left = 0.0
+	_damage_flash_rect.offset_top = 0.0
+	_damage_flash_rect.offset_right = 0.0
+	_damage_flash_rect.offset_bottom = 0.0
+	_damage_flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_damage_flash_rect.visible = false
+	_damage_flash_rect.color = Color.TRANSPARENT
+
+
+func _update_damage_flash(delta: float) -> void:
+	if _damage_flash_rect == null:
+		return
+
+	if _damage_flash_time_left <= 0.0:
+		_damage_flash_rect.visible = false
+		_damage_flash_rect.color = Color.TRANSPARENT
+		return
+
+	_damage_flash_time_left = maxf(_damage_flash_time_left - delta, 0.0)
+	var flash_t := _damage_flash_time_left / _damage_flash_duration
+	var flash_color := _damage_flash_rect.color
+	flash_color.a *= flash_t
+	_damage_flash_rect.color = flash_color
+
+	if _damage_flash_time_left <= 0.0:
+		_damage_flash_rect.visible = false
+		_damage_flash_rect.color = Color.TRANSPARENT
+
+
+func _update_boss_defeat_tint(delta: float) -> void:
+	if _boss_defeat_tint_left <= 0.0:
+		return
+
+	_boss_defeat_tint_left = maxf(_boss_defeat_tint_left - delta, 0.0)
+	_apply_player_modulate()
+
+
+func _apply_player_modulate() -> void:
+	if sprite == null:
+		return
+
+	var modulate_color := Color.WHITE
+
+	if _boss_defeat_tint_left > 0.0:
+		modulate_color = boss_defeat_player_tint
+
+	if _is_invulnerable() and int(_blink_timer * 16.0) % 2 == 0:
+		modulate_color.a = 0.45
+
+	sprite.modulate = modulate_color

@@ -12,6 +12,22 @@ func _ready() -> void:
 	load_current_arena()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventKey:
+		return
+
+	var key_event := event as InputEventKey
+
+	if not key_event.pressed or key_event.echo:
+		return
+
+	match key_event.keycode:
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			_debug_kill_current_boss()
+		KEY_PLUS, KEY_EQUAL, KEY_KP_ADD:
+			_debug_restart_arena()
+
+
 func load_current_arena() -> void:
 	if arena_container == null:
 		push_error("ArenaLoader: ArenaContainer not found.")
@@ -77,3 +93,25 @@ func _snap_camera_to_player() -> void:
 
 	if camera.has_method("snap_to_target"):
 		camera.call_deferred("snap_to_target")
+
+
+func _debug_kill_current_boss() -> void:
+	var boss := _find_current_boss()
+
+	if boss == null:
+		return
+
+	if boss.has_method("die"):
+		boss.call("die")
+
+
+func _debug_restart_arena() -> void:
+	get_tree().reload_current_scene()
+
+
+func _find_current_boss() -> BaseBoss:
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if node is BaseBoss and is_instance_valid(node) and not (node as BaseBoss).defeated:
+			return node as BaseBoss
+
+	return null

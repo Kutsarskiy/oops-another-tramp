@@ -40,6 +40,11 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	if _update_global_stun(_delta):
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	if not is_fight_active():
 		velocity = Vector2.ZERO
 		move_and_slide()
