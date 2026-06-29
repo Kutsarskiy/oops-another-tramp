@@ -11,7 +11,11 @@ const BossDatabaseScript: Script = preload("res://scripts/data/boss_database.gd"
 @export var player_current_weapon_texture_path: String = "res://assets/ui/hud/paper/player_current_weapon.png"
 @export var heart_red_texture_path: String = "res://assets/ui/hud/paper/heart_red.png"
 @export var heart_black_texture_path: String = "res://assets/ui/hud/paper/heart_black.png"
-@export var negotiator_texture_path: String = "res://assets/ui/hud/paper/weapons/the_negotiator.png"
+@export var weapon_icon_texture_paths: Dictionary = {
+	&"the_negotiator": "res://assets/ui/hud/paper/weapons/the_negotiator.png",
+	&"the_final_offer": "res://assets/ui/hud/paper/weapons/the_final_offer.png",
+	&"the_second_amendment": "res://assets/ui/hud/paper/weapons/the_second_amendment.png"
+}
 
 @export var top_margin: float = 8.0
 @export var boss_name_target_width: float = 165.0
@@ -34,6 +38,7 @@ var _boss_name_medium: Texture2D = null
 var _boss_name_long: Texture2D = null
 var _heart_red_texture: Texture2D = null
 var _heart_black_texture: Texture2D = null
+var _weapon_icon_textures: Dictionary = {}
 
 var _font: SystemFont = null
 var _boss: BaseBoss = null
@@ -67,6 +72,7 @@ func _ready() -> void:
 	_boss_name_long = _load_texture_or_null(boss_name_long_texture_path)
 	_heart_red_texture = _load_texture_or_null(heart_red_texture_path)
 	_heart_black_texture = _load_texture_or_null(heart_black_texture_path)
+	_load_weapon_icon_textures()
 
 	_boss_name_rect = _create_texture_rect("BossName", _pick_boss_name_texture(), -1.4)
 	_boss_healthbar_rect = _create_texture_rect("BossHealthbar", _load_texture_or_null(boss_healthbar_texture_path), 1.1)
@@ -76,7 +82,7 @@ func _ready() -> void:
 	_player_healthbar_rect = _create_texture_rect("PlayerHealthbar", _load_texture_or_null(player_healthbar_texture_path), -1.6)
 	_player_name_rect = _create_texture_rect("PlayerName", _load_texture_or_null(player_name_texture_path), 1.2)
 	_player_weapon_rect = _create_texture_rect("PlayerCurrentWeapon", _load_texture_or_null(player_current_weapon_texture_path), -1.1)
-	_weapon_icon_rect = _create_plain_texture_rect("WeaponIcon", _load_texture_or_null(negotiator_texture_path))
+	_weapon_icon_rect = _create_plain_texture_rect("WeaponIcon", null)
 	_player_name_label = _create_label("PlayerNameText", 18, HORIZONTAL_ALIGNMENT_CENTER)
 	_ammo_label = _create_label("AmmoText", 21, HORIZONTAL_ALIGNMENT_LEFT)
 
@@ -198,6 +204,16 @@ func _create_heart_rects() -> void:
 	for i in range(5):
 		var rect := _create_plain_texture_rect("LifeHeart%d" % (i + 1), _heart_red_texture)
 		_heart_rects.append(rect)
+
+
+func _load_weapon_icon_textures() -> void:
+	_weapon_icon_textures.clear()
+
+	for weapon_id in weapon_icon_texture_paths.keys():
+		var texture := _load_texture_or_null(str(weapon_icon_texture_paths[weapon_id]))
+
+		if texture != null:
+			_weapon_icon_textures[StringName(str(weapon_id))] = texture
 
 
 func _layout_hud() -> void:
@@ -367,7 +383,8 @@ func _update_weapon_panel() -> void:
 		if _weapon_controller.has_method("get_current_weapon_id"):
 			weapon_id = _weapon_controller.call("get_current_weapon_id")
 
-	_weapon_icon_rect.visible = weapon_id == &"the_negotiator"
+	_weapon_icon_rect.texture = _weapon_icon_textures.get(weapon_id, null)
+	_weapon_icon_rect.visible = _weapon_icon_rect.texture != null
 	_ammo_label.text = ammo_text
 	_fit_label_font_size(_ammo_label, _ammo_label.text, 21, 12)
 

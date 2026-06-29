@@ -21,6 +21,8 @@ signal boss_defeated
 @export var boss_defeat_enemy_burn_tint: Color = Color(1.0, 0.18, 0.18, 1.0)
 @export var boss_defeat_enemy_burn_duration: float = 0.5
 @export var boss_defeat_enemy_evaporate_duration: float = 0.5
+@export var debug_max_phase: int = 2
+@export var phase_transition_attack_pause: float = 1.0
 
 var current_phase: int = 1
 var fight_started: bool = false
@@ -103,6 +105,50 @@ func enter_phase(phase_number: int) -> void:
 	current_phase = phase_number
 
 	phase_changed.emit(current_phase)
+	_pause_attacks_for_phase_transition()
+
+
+func debug_advance_phase_or_die() -> void:
+	if defeated:
+		return
+
+	if _debug_trigger_next_phase_condition():
+		return
+
+	die()
+
+
+func _debug_trigger_next_phase_condition() -> bool:
+	var next_phase := _debug_get_next_phase_with_health_threshold()
+
+	if next_phase <= current_phase:
+		return false
+
+	_debug_drop_health_to_phase_threshold(next_phase)
+	return true
+
+
+func _debug_get_next_phase_with_health_threshold() -> int:
+	var phases := phase_thresholds.keys()
+	phases.sort()
+
+	for phase in phases:
+		var phase_number := int(phase)
+
+		if phase_number > current_phase:
+			return phase_number
+
+	return -1
+
+
+func _debug_drop_health_to_phase_threshold(phase_number: int) -> void:
+	if not phase_thresholds.has(phase_number):
+		return
+
+	var threshold := float(phase_thresholds[phase_number])
+	current_hp = maxf(max_hp * threshold - 0.001, 1.0)
+	boss_damaged.emit(current_hp)
+	check_phase_transition()
 
 
 func die() -> void:
@@ -120,6 +166,16 @@ func die() -> void:
 
 func is_fight_active() -> bool:
 	return fight_started and not defeated
+
+
+func _pause_attacks_for_phase_transition() -> void:
+	if phase_transition_attack_pause <= 0.0:
+		return
+
+	var attack_controller := get_node_or_null("AttackController")
+
+	if attack_controller != null and attack_controller.has_method("pause_attacks"):
+		attack_controller.call("pause_attacks", phase_transition_attack_pause)
 
 
 func apply_global_stun(duration: float) -> void:

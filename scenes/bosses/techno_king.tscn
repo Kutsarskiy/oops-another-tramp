@@ -1,7 +1,36 @@
-[gd_scene format=3]
+[gd_scene load_steps=5 format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/bosses/generic_oval_boss.tscn" id="1_generic"]
+[ext_resource type="Script" path="res://scripts/bosses/techno_king_boss.gd" id="1_boss"]
+[ext_resource type="Script" path="res://scripts/boss_attacks/boss_attack_controller.gd" id="3_attack"]
 
-[node name="TechnoKing" instance=ExtResource("1_generic")]
-boss_id = "techno_king"
-boss_name = "The Techno-King"
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 42.0
+height = 230.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_hurtbox"]
+radius = 52.0
+height = 270.0
+
+[node name="TechnoKing" type="CharacterBody2D" groups=["enemy"]]
+collision_layer = 8
+collision_mask = 3
+motion_mode = 1
+script = ExtResource("1_boss")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+collision_layer = 8
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+rotation = 1.5708
+shape = SubResource("CapsuleShape2D_hurtbox")
+
+[node name="AttackController" type="Node" parent="."]
+script = ExtResource("3_attack")

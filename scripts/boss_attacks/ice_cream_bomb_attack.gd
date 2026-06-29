@@ -2,21 +2,24 @@ extends BossAttack
 class_name IceCreamBombAttack
 
 
-const BulletScene: PackedScene = preload("res://scenes/bullet.tscn")
+const BulletScene: PackedScene = preload("res://scenes/projectiles/enemy/sleepy_joe/ice_cream_large_projectile.tscn")
+const SplitBulletScene: PackedScene = preload("res://scenes/projectiles/enemy/sleepy_joe/ice_cream_split_projectile.tscn")
 
-var cooldown: float = 7.5
+var cooldown: float = 5.0
 var windup_duration: float = 1.0
 var recovery_duration: float = 1.0
-var large_speed: float = 420.0
+var large_speed: float = 450.0
 var large_lifetime: float = 2.2
-var small_speed: float = 330.0
+var large_curve_strength_degrees: float = 30.0
+var large_curve_frequency: float = 0.55
+var small_speed: float = 350.0
 var small_lifetime: float = 2.6
 var split_count: int = 16
-var small_bounces: int = 1
+var small_bounces: int = 0
 var prediction_time: float = 0.65
 var prediction_error_radius: float = 90.0
 var large_texture_path: String = "res://assets/projectiles/enemy/sleepy_joe/ice_cream_large_shot.png"
-var small_texture_path: String = "res://assets/projectiles/enemy/sleepy_joe/ice_cream_small_shot.png"
+var split_texture_path: String = "res://assets/projectiles/enemy/sleepy_joe/ice_cream_big_shot.png"
 
 var _cooldown_left: float = 2.4
 var _windup_left: float = 0.0
@@ -58,6 +61,13 @@ func update(delta: float) -> void:
 	_start_windup()
 
 
+func cancel() -> void:
+	_windup_left = 0.0
+	_recovery_left = 0.0
+	_cooldown_left = cooldown
+	_end_windup()
+
+
 func _start_windup() -> void:
 	var player := owner_boss.get_tree().get_first_node_in_group("player") as Node2D
 
@@ -73,6 +83,7 @@ func _start_windup() -> void:
 	if owner_boss.has_method("set_special_windup_active"):
 		owner_boss.call("set_special_windup_active", true)
 
+	show_debug_attack("Ice Cream Bomb")
 	_windup_left = windup_duration
 
 
@@ -87,6 +98,8 @@ func _fire_bomb() -> void:
 	if bullet == null:
 		return
 
+	var projectile_radius: float = bullet.radius
+	var projectile_color: Color = bullet.color
 	owner_boss.get_parent().add_child(bullet)
 	bullet.global_position = owner_boss.global_position
 	bullet.direction = _pending_direction
@@ -95,24 +108,31 @@ func _fire_bomb() -> void:
 		1,
 		large_speed,
 		large_lifetime,
-		bullet.radius,
-		bullet.color,
+		projectile_radius,
+		projectile_color,
 		large_texture_path
 	)
 	bullet.configure_split_projectile(
-		small_texture_path,
+		split_texture_path,
 		split_count,
 		small_speed,
 		small_lifetime,
 		small_bounces,
 		true,
-		true
+		true,
+		SplitBulletScene
+	)
+	bullet.configure_curve(
+		large_curve_strength_degrees,
+		large_curve_frequency
 	)
 
 
 func _end_windup() -> void:
 	if owner_boss != null and owner_boss.has_method("set_special_windup_active"):
 		owner_boss.call("set_special_windup_active", false)
+
+	clear_debug_attack("Ice Cream Bomb")
 
 
 func _get_predicted_direction(player: Node2D) -> Vector2:

@@ -3,12 +3,15 @@ class_name TestShootAttack
 
 
 var cooldown: float = 0.25
+var rage_cooldown: float = 0.2
 var timer: float = 0.0
 var bullet_texture_path: String = "res://assets/projectiles/enemy/sleepy_joe/ice_cream_big_shot.png"
+var bullet_speed: float = 550.0
+var bullet_lifetime: float = 1.5
 var aim_area_radius: float = 150.0
 var angle_spread_degrees: float = 13.0
 
-var bullet_scene := preload("res://scenes/bullet.tscn")
+var bullet_scene: PackedScene = preload("res://scenes/projectiles/enemy/sleepy_joe/ice_cream_basic_projectile.tscn")
 
 
 func update(delta: float) -> void:
@@ -18,7 +21,7 @@ func update(delta: float) -> void:
 	if timer > 0.0:
 		return
 
-	timer = cooldown
+	timer = _get_current_cooldown()
 
 	shoot()
 
@@ -36,7 +39,11 @@ func shoot() -> void:
 	if player == null:
 		return
 
-	var bullet = bullet_scene.instantiate()
+	var selected_bullet_scene := _get_owner_basic_bullet_scene()
+	var bullet = selected_bullet_scene.instantiate()
+	var projectile_radius: float = bullet.radius
+	var projectile_color: Color = bullet.color
+	var selected_texture_path := _get_owner_basic_bullet_texture_path()
 
 	owner_boss.get_parent().add_child(bullet)
 
@@ -61,12 +68,14 @@ func shoot() -> void:
 	bullet.setup_bullet(true)
 	bullet.configure_projectile(
 		bullet.damage,
-		bullet.speed,
-		bullet.lifetime,
-		bullet.radius,
-		bullet.color,
-		bullet_texture_path
+		bullet_speed,
+		bullet_lifetime,
+		projectile_radius,
+		projectile_color,
+		selected_texture_path
 	)
+
+	show_debug_attack("Basic Shot")
 
 	if owner_boss.has_method("on_attack_shot"):
 		owner_boss.call("on_attack_shot")
@@ -77,3 +86,27 @@ func _get_random_aim_offset() -> Vector2:
 	var distance := sqrt(randf()) * aim_area_radius
 
 	return Vector2.RIGHT.rotated(angle) * distance
+
+
+func _get_current_cooldown() -> float:
+	if owner_boss != null and owner_boss.has_method("is_rage_phase") and bool(owner_boss.call("is_rage_phase")):
+		return rage_cooldown
+
+	return cooldown
+
+
+func _get_owner_basic_bullet_scene() -> PackedScene:
+	if owner_boss != null and owner_boss.has_method("get_basic_bullet_scene"):
+		var owner_scene: PackedScene = owner_boss.call("get_basic_bullet_scene")
+
+		if owner_scene != null:
+			return owner_scene
+
+	return bullet_scene
+
+
+func _get_owner_basic_bullet_texture_path() -> String:
+	if owner_boss != null and owner_boss.has_method("get_basic_bullet_texture_path"):
+		return str(owner_boss.call("get_basic_bullet_texture_path", bullet_texture_path))
+
+	return bullet_texture_path

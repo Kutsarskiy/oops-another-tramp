@@ -1,13 +1,16 @@
 extends Area2D
+class_name Bullet
 
 @export var speed: float = 680.0
 @export var lifetime: float = 1.45
 @export var radius: float = 9.0
 @export var color: Color = Color(1.0, 0.72, 0.18)
 @export var texture_path: String = ""
+@export var collision_radius_from_texture: bool = false
 @export var split_on_impact: bool = false
 @export var split_on_timeout: bool = false
 @export var split_count: int = 0
+@export var split_projectile_scene: PackedScene = null
 @export var split_projectile_texture_path: String = ""
 @export var split_projectile_speed: float = 360.0
 @export var split_projectile_lifetime: float = 2.0
@@ -16,6 +19,11 @@ extends Area2D
 @export var evaporate_duration: float = 0.25
 @export var evaporate_scale_multiplier: float = 1.5
 @export var evaporate_jitter: float = 4.0
+@export var curve_strength_degrees: float = 0.0
+@export var curve_frequency: float = 1.0
+@export var impact_shake_duration: float = 0.0
+@export var impact_shake_strength: float = 0.0
+@export var impact_knockback_force: float = 0.0
 
 @export var damage: int = 1
 @export var team: StringName = &"player" # "player" или "enemy"
@@ -31,10 +39,19 @@ var _is_evaporating: bool = false
 var _evaporate_time_left: float = 0.0
 var _evaporate_duration: float = 0.0
 var _base_visual_scale: Vector2 = Vector2.ONE
+var _has_ballistic_arc: bool = false
+var _curve_elapsed: float = 0.0
+var _straight_direction: Vector2 = Vector2.RIGHT
+var _curve_start_position: Vector2 = Vector2.ZERO
+var _curve_arc_height: float = 0.0
+var _has_split: bool = false
+var _impact_feedback_played: bool = false
 
 
 func _ready() -> void:
+	_ensure_unique_collision_shape()
 	_time_left = lifetime
+	_curve_start_position = global_position
 	_sync_texture_sprite()
 	_apply_collision_radius()
 
@@ -49,13 +66,19 @@ func _physics_process(delta: float) -> void:
 		_update_evaporation(delta)
 		return
 
-	global_position += direction * speed * delta
+	if _has_ballistic_arc:
+		_update_ballistic_arc(delta)
+	else:
+		global_position += direction * speed * delta
+
+	if not split_on_timeout:
+		return
 
 	_time_left -= delta
 
 	if _time_left <= 0.0:
-		if split_on_timeout:
-			_split_projectile()
+		_play_impact_feedback()
+		_split_projectile()
 		queue_free()
 
 
@@ -94,6 +117,7 @@ func configure_projectile(
 	damage = new_damage
 	speed = new_speed
 	lifetime = new_lifetime
+	_time_left = lifetime
 	radius = new_radius
 	color = new_color
 	texture_path = new_texture_path
@@ -141,7 +165,8 @@ func configure_split_projectile(
 	new_split_lifetime: float,
 	new_split_bounces: int,
 	should_split_on_impact: bool = true,
-	should_split_on_timeout: bool = true
+	should_split_on_timeout: bool = true,
+	new_split_projectile_scene: PackedScene = null
 ) -> void:
 	split_projectile_texture_path = new_split_texture_path
 	split_count = new_split_count
@@ -150,12 +175,53 @@ func configure_split_projectile(
 	split_projectile_bounces = new_split_bounces
 	split_on_impact = should_split_on_impact
 	split_on_timeout = should_split_on_timeout
+	split_projectile_scene = new_split_projectile_scene
+
+
+func configure_curve(
+	new_curve_strength_degrees: float,
+	new_curve_frequency: float = 1.0,
+	new_curve_sign: float = 0.0
+) -> void:
+	curve_strength_degrees = new_curve_strength_degrees
+	curve_frequency = new_curve_frequency
+	_has_ballistic_arc = absf(curve_strength_degrees) > 0.001
+	_curve_elapsed = 0.0
+	_curve_start_position = global_position
+
+	if not _has_ballistic_arc:
+		return
+
+	if direction.length_squared() > 0.001:
+		_straight_direction = direction.normalized()
+
+	var expected_travel_distance := speed * maxf(lifetime, 0.01)
+	_curve_arc_height = expected_travel_distance * tan(deg_to_rad(absf(curve_strength_degrees))) * maxf(curve_frequency, 0.01)
+
+	if absf(new_curve_sign) > 0.001:
+		_curve_arc_height *= signf(new_curve_sign)
+
+
+func _update_ballistic_arc(delta: float) -> void:
+	if not _has_ballistic_arc:
+		return
+
+	if _straight_direction.length_squared() <= 0.001:
+		_straight_direction = Vector2.RIGHT
+
+	_curve_elapsed += delta
+	var curve_duration := maxf(lifetime, 0.01)
+	var curve_progress := clampf(_curve_elapsed / curve_duration, 0.0, 1.0)
+	var straight_position := _curve_start_position + _straight_direction * speed * _curve_elapsed
+	var arc_offset := Vector2.UP * _curve_arc_height * sin(curve_progress * PI)
+
+	global_position = straight_position + arc_offset
 
 
 func _apply_collision_radius() -> void:
-	if _texture != null:
+	if collision_radius_from_texture and _texture != null:
 		var texture_size := _texture.get_size()
-		radius = maxf(texture_size.x, texture_size.y) * 0.5
+		radius = maxf(texture_size.x, texture_size.y) * _texture_content_fit_scale * 0.5
 
 	if collision_shape == null:
 		return
@@ -166,6 +232,13 @@ func _apply_collision_radius() -> void:
 		return
 
 	circle_shape.radius = radius
+
+
+func _ensure_unique_collision_shape() -> void:
+	if collision_shape == null or collision_shape.shape == null:
+		return
+
+	collision_shape.shape = collision_shape.shape.duplicate()
 
 
 func _load_projectile_texture() -> void:
@@ -301,12 +374,18 @@ func _on_body_entered(body: Node) -> void:
 		return
 
 	if body.has_method("take_damage"):
+		if _should_play_damage_impact_feedback(body):
+			_apply_damage_knockback(body)
+			_play_impact_feedback()
+
 		body.call("take_damage", damage)
 		queue_free()
 		return
 
 	if split_on_impact:
-		_split_projectile()
+		var surface_normal := _get_surface_normal(body)
+		_play_impact_feedback()
+		_split_projectile(surface_normal)
 		queue_free()
 		return
 
@@ -315,6 +394,7 @@ func _on_body_entered(body: Node) -> void:
 		direction = direction.bounce(_get_surface_normal(body)).normalized()
 		return
 
+	_play_impact_feedback()
 	queue_free()
 
 
@@ -329,6 +409,10 @@ func _on_area_entered(area: Area2D) -> void:
 			return
 
 		if damage_target.has_method("take_damage"):
+			if _should_play_damage_impact_feedback(damage_target):
+				_apply_damage_knockback(damage_target)
+				_play_impact_feedback()
+
 			damage_target.call("take_damage", damage)
 
 	queue_free()
@@ -352,21 +436,40 @@ func _get_damage_target_from_area(area: Area2D) -> Node:
 	return null
 
 
-func _split_projectile() -> void:
+func _split_projectile(spawn_normal: Vector2 = Vector2.ZERO) -> void:
+	if _has_split:
+		return
+
 	if split_count <= 0:
 		return
+
+	_has_split = true
+	split_on_impact = false
+	split_on_timeout = false
+	set_deferred("monitoring", false)
+	set_deferred("monitorable", false)
+
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
 
 	var parent_node := get_parent()
 
 	if parent_node == null:
 		return
 
-	var bullet_scene := load("res://scenes/bullet.tscn") as PackedScene
+	var bullet_scene := split_projectile_scene
+
+	if bullet_scene == null:
+		bullet_scene = load("res://scenes/bullet.tscn") as PackedScene
 
 	if bullet_scene == null:
 		return
 
 	var base_angle := randf_range(0.0, TAU)
+	var spawn_position := global_position
+
+	if spawn_normal.length_squared() > 0.001:
+		spawn_position += spawn_normal.normalized() * maxf(radius + 2.0, 4.0)
 
 	for i in range(split_count):
 		var bullet := bullet_scene.instantiate()
@@ -374,8 +477,10 @@ func _split_projectile() -> void:
 		if bullet == null:
 			continue
 
-		parent_node.add_child(bullet)
-		bullet.global_position = global_position
+		var projectile_radius: float = bullet.radius
+		var projectile_color: Color = bullet.color
+		parent_node.call_deferred("add_child", bullet)
+		bullet.global_position = spawn_position
 		bullet.setup_bullet(team == &"enemy")
 		bullet.direction = Vector2.RIGHT.rotated(base_angle + TAU * float(i) / float(split_count))
 		bullet.bounces_remaining = split_projectile_bounces
@@ -383,10 +488,42 @@ func _split_projectile() -> void:
 			damage,
 			split_projectile_speed,
 			split_projectile_lifetime,
-			radius,
-			color,
+			projectile_radius,
+			projectile_color,
 			split_projectile_texture_path
 		)
+
+
+func _play_impact_feedback() -> void:
+	if _impact_feedback_played:
+		return
+
+	if impact_shake_duration <= 0.0 or impact_shake_strength <= 0.0:
+		return
+
+	_impact_feedback_played = true
+	var player := get_tree().get_first_node_in_group("player")
+
+	if player != null and player.has_method("play_phase_transition_feedback"):
+		player.call("play_phase_transition_feedback", impact_shake_duration, impact_shake_strength)
+
+
+func _should_play_damage_impact_feedback(damage_target: Node) -> bool:
+	if damage_target.has_method("is_invulnerable") and bool(damage_target.call("is_invulnerable")):
+		return false
+
+	if damage_target.has_method("is_debug_hurtbox_disabled") and bool(damage_target.call("is_debug_hurtbox_disabled")):
+		return false
+
+	return true
+
+
+func _apply_damage_knockback(damage_target: Node) -> void:
+	if impact_knockback_force <= 0.0:
+		return
+
+	if damage_target.has_method("apply_heavy_hit_knockback"):
+		damage_target.call("apply_heavy_hit_knockback", global_position, impact_knockback_force)
 
 
 func _get_surface_normal(body: Node) -> Vector2:

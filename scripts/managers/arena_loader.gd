@@ -23,7 +23,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	match key_event.keycode:
 		KEY_MINUS, KEY_KP_SUBTRACT:
-			_debug_kill_current_boss()
+			_debug_advance_current_boss()
 		KEY_PLUS, KEY_EQUAL, KEY_KP_ADD:
 			_debug_restart_arena()
 
@@ -95,14 +95,14 @@ func _snap_camera_to_player() -> void:
 		camera.call_deferred("snap_to_target")
 
 
-func _debug_kill_current_boss() -> void:
+func _debug_advance_current_boss() -> void:
 	var boss := _find_current_boss()
 
 	if boss == null:
 		return
 
-	if boss.has_method("die"):
-		boss.call("die")
+	if boss.has_method("debug_advance_phase_or_die"):
+		boss.call("debug_advance_phase_or_die")
 
 
 func _debug_restart_arena() -> void:

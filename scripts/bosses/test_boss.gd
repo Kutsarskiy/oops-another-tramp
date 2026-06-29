@@ -1,6 +1,19 @@
 extends BaseBoss
 class_name TestBoss
 
+const BASIC_BULLET_SCENES: Dictionary = {
+	"sleepy_joe": preload("res://scenes/projectiles/enemy/sleepy_joe/ice_cream_basic_projectile.tscn"),
+	"techno_king": preload("res://scenes/projectiles/enemy/techno_king/techno_king_basic_projectile.tscn"),
+	"madam_firewall": preload("res://scenes/projectiles/enemy/madam_firewall/madam_firewall_basic_projectile.tscn"),
+	"xi_jinping": preload("res://scenes/projectiles/enemy/xi_jinping/xi_jinping_basic_projectile.tscn"),
+	"boris_johnson": preload("res://scenes/projectiles/enemy/boris_johnson/boris_johnson_basic_projectile.tscn"),
+	"mark_zuckerberg": preload("res://scenes/projectiles/enemy/mark_zuckerberg/mark_zuckerberg_basic_projectile.tscn"),
+	"general_rocket": preload("res://scenes/projectiles/enemy/general_rocket/general_rocket_basic_projectile.tscn"),
+	"vladimir_putin": preload("res://scenes/projectiles/enemy/vladimir_putin/vladimir_putin_basic_projectile.tscn"),
+	"jd_vance": preload("res://scenes/projectiles/enemy/jd_vance/jd_vance_basic_projectile.tscn"),
+	"prime_tramp": preload("res://scenes/projectiles/enemy/prime_tramp/prime_tramp_basic_projectile.tscn")
+}
+
 @export var move_speed: float = 100.0
 @export var phase_2_speed_multiplier: float = 1.5
 @export var contact_stop_distance: float = 118.0
@@ -88,6 +101,17 @@ func _on_boss_started() -> void:
 
 func _on_boss_defeated() -> void:
 	attack_controller.set_active(false)
+
+
+func get_basic_bullet_scene() -> PackedScene:
+	return BASIC_BULLET_SCENES.get(boss_id, BASIC_BULLET_SCENES["madam_firewall"])
+
+
+func get_basic_bullet_texture_path(default_texture_path: String = "") -> String:
+	if boss_id == "sleepy_joe":
+		return default_texture_path
+
+	return ""
 
 
 func _ensure_placeholder_texture() -> void:

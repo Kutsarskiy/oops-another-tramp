@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/projectiles/enemy/techno_king_bullet.gd" id="1_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_basic"]
+radius = 10.0
+
+[node name="TechnoKingBasicProjectile" type="Area2D"]
+collision_layer = 4
+script = ExtResource("1_script")
+speed = 610.0
+lifetime = 1.55
+radius = 10.0
+color = Color(0.2, 0.85, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_basic")

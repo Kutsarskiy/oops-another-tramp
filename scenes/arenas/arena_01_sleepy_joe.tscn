@@ -1,26 +1,58 @@
-[gd_scene format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/arenas/basic_arena.gd" id="1_arena"]
 [ext_resource type="Script" path="res://scripts/managers/boss_spawner.gd" id="2_spawner"]
+[ext_resource type="Texture2D" path="res://assets/arenas/sleepy_joe/bed.png" id="3_bed"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_bed_blocker"]
+size = Vector2(400, 360)
 
 [node name="Arena01SleepyJoe" type="Node2D"]
 script = ExtResource("1_arena")
-arena_size = Vector2(2160, 2160)
-arena_color = Color(0.42, 0.45, 0.43, 1)
+arena_size = Vector2(1400, 1400)
+arena_color = Color(0.31, 0.34, 0.33, 1)
+wall_color = Color(0.22, 0.25, 0.24, 1)
+wall_thickness = 72.0
+use_circular_boundary = true
+circular_boundary_segments = 32
+distance_zoom_enabled = false
+distance_zoom_near_distance = 520.0
+distance_zoom_far_distance = 900.0
+distance_zoom_near_zoom = Vector2(0.75, 0.75)
+distance_zoom_far_zoom = Vector2(0.58, 0.58)
+boss_bias_camera_enabled = true
+boss_bias_near_distance = 250.0
+boss_bias_far_distance = 700.0
+boss_bias_near_amount = 0.15
+boss_bias_far_amount = 0.4
 spawn_debug_pickups = false
 spawn_debug_minion = false
 
+[node name="BedBlocker" type="StaticBody2D" parent="."]
+position = Vector2(0, -395)
+collision_layer = 32
+collision_mask = 0
+
+[node name="Sprite2D" type="Sprite2D" parent="BedBlocker"]
+z_index = -2
+texture_filter = 1
+texture = ExtResource("3_bed")
+scale = Vector2(2.1, 2.1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BedBlocker"]
+shape = SubResource("RectangleShape2D_bed_blocker")
+
 [node name="PlayerSpawnPoint" type="Marker2D" parent="."]
-position = Vector2(0, 420)
+position = Vector2(0, 310)
 
 [node name="BossSpawner" type="Node" parent="."]
 script = ExtResource("2_spawner")
 
 [node name="MainBossSpawnPoint" type="Marker2D" parent="BossSpawner"]
-position = Vector2(0, 0)
+position = Vector2(0, -345)
 
 [node name="RewardSpawnPoint" type="Marker2D" parent="BossSpawner"]
-position = Vector2(0, 160)
+position = Vector2(0, 180)
 
 [node name="ExitSpawnPoint" type="Marker2D" parent="BossSpawner"]
-position = Vector2(0, -760)
+position = Vector2(0, 560)

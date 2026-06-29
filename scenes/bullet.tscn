@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://bk0atyhwksxmi"]
 
 [ext_resource type="Script" uid="uid://bdgl803b0l8ud" path="res://scenes/bullet.gd" id="1_v7oki"]
-[ext_resource type="Texture2D" path="res://assets/projectiles/player/shot_medium.png" id="2_shot_medium"]
+[ext_resource type="Texture2D" path="res://assets/projectiles/player/donni/shots/donni_shot_big.png" id="2_shot_medium"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rtl8c"]
 radius = 9.0

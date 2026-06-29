@@ -1,6 +1,11 @@
 extends Resource
 class_name WeaponData
 
+const DONNI_SHOT_SMALL_TEXTURE_PATH: String = "res://assets/projectiles/player/donni/shots/donni_shot_small.png"
+const DONNI_SHOT_MID_TEXTURE_PATH: String = "res://assets/projectiles/player/donni/shots/donni_shot_mid.png"
+const DONNI_SHOT_BIG_TEXTURE_PATH: String = "res://assets/projectiles/player/donni/shots/donni_shot_big.png"
+const DONNI_SHOT_LARGE_TEXTURE_PATH: String = "res://assets/projectiles/player/donni/shots/donni_shot_large.png"
+
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
@@ -63,9 +68,9 @@ static func create_the_negotiator():
 	data.bullet_lifetime = 1.2
 	data.bullet_count = 1
 	data.spread_degrees = 0.0
-	data.bullet_radius = 4.0
+	data.bullet_radius = 12.0
 	data.bullet_color = Color(1.0, 0.9, 0.2)
-	data.bullet_texture_path = "res://assets/projectiles/player/shot_medium.png"
+	data.bullet_texture_path = DONNI_SHOT_BIG_TEXTURE_PATH
 
 	data.magazine_size = 12
 	data.reserve_ammo = 0
@@ -102,9 +107,9 @@ static func create_the_final_offer():
 	data.bullet_lifetime = 0.75
 	data.bullet_count = 8
 	data.spread_degrees = 32.0
-	data.bullet_radius = 3.5
+	data.bullet_radius = 8.0
 	data.bullet_color = Color(1.0, 0.55, 0.2)
-	data.bullet_texture_path = "res://assets/projectiles/player/shot_small.png"
+	data.bullet_texture_path = DONNI_SHOT_MID_TEXTURE_PATH
 
 	data.magazine_size = 8
 	data.reserve_ammo = 192
@@ -141,9 +146,9 @@ static func create_the_second_amendment():
 	data.bullet_lifetime = 1.1
 	data.bullet_count = 1
 	data.spread_degrees = 5.0
-	data.bullet_radius = 3.5
+	data.bullet_radius = 12.0
 	data.bullet_color = Color(0.85, 0.9, 1.0)
-	data.bullet_texture_path = "res://assets/projectiles/player/shot_large.png"
+	data.bullet_texture_path = DONNI_SHOT_BIG_TEXTURE_PATH
 
 	data.magazine_size = 30
 	data.reserve_ammo = 900

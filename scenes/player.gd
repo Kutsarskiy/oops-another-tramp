@@ -4,12 +4,14 @@ const PLAYER_HURTBOX_LAYER_BIT: int = 4
 const PLAYER_BODY_LAYER_BIT: int = 1
 const WALL_COLLISION_LAYER_BIT: int = 0
 const ENEMY_COLLISION_LAYER_BIT: int = 3
+const PLAYER_BLOCKER_LAYER_BIT: int = 5
 const PaperStateSpriteScript: Script = preload("res://scripts/visuals/paper_state_sprite.gd")
 
 @export var move_speed: float = 200.0
 @export var recoil_decay_speed: float = 1200.0
 @export var paper_shadow_offset: Vector2 = Vector2(5.0, 6.0)
 @export var paper_shadow_color: Color = Color(0.0, 0.0, 0.0, 0.32)
+@export var mirror_collision_with_visual: bool = true
 @export var reload_indicator_offset: Vector2 = Vector2(-22.0, -58.0)
 @export var reload_indicator_size: Vector2 = Vector2(44.0, 5.0)
 @export var reload_indicator_color: Color = Color.WHITE
@@ -17,13 +19,17 @@ const PaperStateSpriteScript: Script = preload("res://scripts/visuals/paper_stat
 @export var reload_indicator_cap_height: float = 9.0
 
 @export var paper_state_texture_paths: Dictionary = {
-	&"idle": "res://assets/characters/player/donni/donni_right_idle.png",
-	&"run": "res://assets/characters/player/donni/donni_right_run.png"
+	&"idle": "res://assets/characters/player/donni/weapons/the_negotiator/idle_right.png",
+	&"run": "res://assets/characters/player/donni/weapons/the_negotiator/run_right.png"
 }
 @export var weapon_paper_state_texture_paths: Dictionary = {
 	&"the_negotiator": {
 		&"idle": "res://assets/characters/player/donni/weapons/the_negotiator/idle_right.png",
 		&"run": "res://assets/characters/player/donni/weapons/the_negotiator/run_right.png"
+	},
+	&"the_final_offer": {
+		&"idle": "res://assets/characters/player/donni/weapons/the_final_offer/idle_right.png",
+		&"run": "res://assets/characters/player/donni/weapons/the_final_offer/run_right.png"
 	},
 	&"the_second_amendment": {
 		&"idle": "res://assets/characters/player/donni/weapons/the_second_amendment/idle_right.png",
@@ -52,6 +58,10 @@ var _is_game_over: bool = false
 @export var dash_cooldown: float = 0.5
 @export var after_dash_invulnerability: float = 0.25
 @export var after_dash_shoot_lock: float = 0.5
+@export var dash_trail_spawn_interval: float = 0.035
+@export var dash_trail_lifetime: float = 0.18
+@export var dash_trail_start_color: Color = Color(1.0, 0.86, 0.42, 0.42)
+@export var dash_trail_end_scale_multiplier: float = 0.92
 @export var enemy_stun_on_hit_duration: float = 2.0
 @export var damage_flash_duration: float = 0.25
 @export var damage_flash_color: Color = Color(1.0, 0.0, 0.0, 0.28)
@@ -69,6 +79,7 @@ var _is_game_over: bool = false
 var _dash_time_left: float = 0.0
 var _dash_cooldown_left: float = 0.0
 var _dash_direction: Vector2 = Vector2.ZERO
+var _dash_trail_spawn_left: float = 0.0
 var _shoot_lock_left: float = 0.0
 
 @export var bullet_scene: PackedScene = preload("res://scenes/bullet.tscn")
@@ -121,6 +132,8 @@ var _recoil_velocity: Vector2 = Vector2.ZERO
 var _camera_movement_velocity: Vector2 = Vector2.ZERO
 var _base_collision_shape_position: Vector2 = Vector2.ZERO
 var _base_hurtbox_collision_shape_position: Vector2 = Vector2.ZERO
+var _base_hurtbox_collision_layer: int = 0
+var _base_hurtbox_collision_mask: int = 0
 var _base_camera_offset: Vector2 = Vector2.ZERO
 var _last_face_direction: Vector2 = Vector2.RIGHT
 var _shot_cooldown_left: float = 0.0
@@ -131,6 +144,7 @@ var _damage_flash_rect: ColorRect = null
 var _damage_flash_time_left: float = 0.0
 var _damage_flash_duration: float = 0.0
 var _boss_defeat_tint_left: float = 0.0
+var _debug_hurtbox_disabled: bool = false
 
 
 func _ready() -> void:
@@ -144,7 +158,11 @@ func _ready() -> void:
 	z_index = 10
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	collision_layer = 1 << PLAYER_BODY_LAYER_BIT
-	collision_mask = (1 << WALL_COLLISION_LAYER_BIT) | (1 << ENEMY_COLLISION_LAYER_BIT)
+	collision_mask = (
+		(1 << WALL_COLLISION_LAYER_BIT)
+		| (1 << ENEMY_COLLISION_LAYER_BIT)
+		| (1 << PLAYER_BLOCKER_LAYER_BIT)
+	)
 
 	_store_base_node_positions()
 	_configure_hurtbox()
@@ -192,10 +210,27 @@ func _physics_process(delta: float) -> void:
 
 	_update_recoil(delta)
 	_update_paper_visual(visual_direction, is_running)
+	_update_dash_trail(delta)
 	_update_camera_shake(delta)
 	_update_boss_defeat_tint(delta)
 	_update_damage_flash(delta)
 	_update_reload_indicator()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
+
+	if not event is InputEventKey:
+		return
+
+	var key_event := event as InputEventKey
+
+	if not key_event.pressed or key_event.echo:
+		return
+
+	if key_event.keycode == KEY_BRACKETRIGHT or key_event.physical_keycode == KEY_BRACKETRIGHT or key_event.unicode == 1098:
+		_set_debug_hurtbox_disabled(not _debug_hurtbox_disabled)
 
 
 func _get_movement_input_direction() -> Vector2:
@@ -237,6 +272,50 @@ func _configure_hurtbox() -> void:
 	hurtbox.set_deferred("monitorable", true)
 	hurtbox.collision_layer = 1 << PLAYER_HURTBOX_LAYER_BIT
 	hurtbox.collision_mask = 0
+	_base_hurtbox_collision_layer = hurtbox.collision_layer
+	_base_hurtbox_collision_mask = hurtbox.collision_mask
+
+
+func _set_debug_hurtbox_disabled(is_disabled: bool) -> void:
+	if hurtbox == null:
+		return
+
+	_debug_hurtbox_disabled = is_disabled
+
+	hurtbox.set_deferred("monitoring", not is_disabled)
+	hurtbox.set_deferred("monitorable", not is_disabled)
+	hurtbox.set_deferred("collision_layer", 0 if is_disabled else _base_hurtbox_collision_layer)
+	hurtbox.set_deferred("collision_mask", 0 if is_disabled else _base_hurtbox_collision_mask)
+
+	if hurtbox_collision_shape != null:
+		hurtbox_collision_shape.set_deferred("disabled", is_disabled)
+
+	print("DEBUG: player hurtbox disabled" if is_disabled else "DEBUG: player hurtbox enabled")
+
+
+func is_debug_hurtbox_disabled() -> bool:
+	return _debug_hurtbox_disabled
+
+
+func is_invulnerable() -> bool:
+	return _is_invulnerable()
+
+
+func apply_heavy_hit_knockback(source_position: Vector2, base_force: float) -> void:
+	if base_force <= 0.0:
+		return
+
+	var knockback_direction := global_position - source_position
+
+	if knockback_direction.length_squared() <= 0.001:
+		knockback_direction = _last_face_direction
+
+	if knockback_direction.length_squared() <= 0.001:
+		knockback_direction = Vector2.RIGHT
+
+	var form_scale := maxf(_get_current_scale(), 0.1)
+	var scale_multiplier := clampf(1.0 / form_scale, 1.0, 1.85)
+	_recoil_velocity += knockback_direction.normalized() * base_force * scale_multiplier
 
 
 func _update_paper_visual(face_direction: Vector2, is_running: bool) -> void:
@@ -249,10 +328,16 @@ func _update_paper_visual(face_direction: Vector2, is_running: bool) -> void:
 
 	_paper_visual.set_state(_get_paper_visual_state_for_current_weapon(state))
 
-	if face_direction.length_squared() > 0.0001:
-		_last_face_direction = face_direction.normalized()
+	var visual_face_direction := face_direction
+
+	if _should_face_aim_direction():
+		visual_face_direction = _get_aim_face_direction()
+
+	if visual_face_direction.length_squared() > 0.0001:
+		_last_face_direction = visual_face_direction.normalized()
 
 	_paper_visual.face_direction(_last_face_direction)
+	_sync_collision_mirroring()
 	_update_paper_shadow()
 
 
@@ -383,6 +468,25 @@ func _get_paper_visual_state_for_current_weapon(base_state: StringName) -> Strin
 	return base_state
 
 
+func _should_face_aim_direction() -> bool:
+	if _shoot_state_left > 0.0:
+		return true
+
+	if InputMap.has_action("shoot") and Input.is_action_pressed("shoot"):
+		return true
+
+	return _get_current_weapon_id() != &""
+
+
+func _get_aim_face_direction() -> Vector2:
+	var aim_direction := get_global_mouse_position() - global_position
+
+	if aim_direction.length_squared() < 0.0001:
+		return _last_face_direction
+
+	return aim_direction.normalized()
+
+
 func _get_weapon_paper_state(weapon_id: StringName, base_state: StringName) -> StringName:
 	return StringName("%s:%s" % [String(weapon_id), String(base_state)])
 
@@ -444,11 +548,11 @@ func _apply_current_form() -> void:
 
 	if collision_shape != null:
 		collision_shape.scale = Vector2.ONE * form_scale
-		collision_shape.position = _base_collision_shape_position * form_scale
 
 	if hurtbox_collision_shape != null:
 		hurtbox_collision_shape.scale = Vector2.ONE * form_scale
-		hurtbox_collision_shape.position = _base_hurtbox_collision_shape_position * form_scale
+
+	_sync_collision_mirroring()
 
 	if muzzle != null:
 		muzzle.position = Vector2(muzzle_distance * form_scale, 0.0)
@@ -461,6 +565,23 @@ func _apply_current_form() -> void:
 
 func _get_current_scale() -> float:
 	return float(trump_forms[current_form_index]["scale"])
+
+
+func _sync_collision_mirroring() -> void:
+	var form_scale := _get_current_scale()
+	var mirror_sign := -1.0 if mirror_collision_with_visual and sprite != null and sprite.flip_h else 1.0
+
+	if collision_shape != null:
+		collision_shape.position = Vector2(
+			_base_collision_shape_position.x * mirror_sign,
+			_base_collision_shape_position.y
+		) * form_scale
+
+	if hurtbox_collision_shape != null:
+		hurtbox_collision_shape.position = Vector2(
+			_base_hurtbox_collision_shape_position.x * mirror_sign,
+			_base_hurtbox_collision_shape_position.y
+		) * form_scale
 
 
 func get_current_life_count() -> int:
@@ -732,6 +853,52 @@ func _update_dash_timers(delta: float) -> void:
 		_shoot_lock_left = maxf(_shoot_lock_left - delta, 0.0)
 
 
+func _update_dash_trail(delta: float) -> void:
+	if not _is_dashing():
+		_dash_trail_spawn_left = 0.0
+		return
+
+	_dash_trail_spawn_left -= delta
+
+	if _dash_trail_spawn_left > 0.0:
+		return
+
+	_spawn_dash_trail_afterimage()
+	_dash_trail_spawn_left = dash_trail_spawn_interval
+
+
+func _spawn_dash_trail_afterimage() -> void:
+	if sprite == null or sprite.texture == null:
+		return
+
+	var parent_node := get_parent()
+
+	if parent_node == null:
+		return
+
+	var afterimage := Sprite2D.new()
+	afterimage.name = "DashTrailAfterimage"
+	afterimage.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	afterimage.texture = sprite.texture
+	afterimage.centered = sprite.centered
+	afterimage.offset = sprite.offset
+	afterimage.flip_h = sprite.flip_h
+	afterimage.flip_v = sprite.flip_v
+	afterimage.z_index = z_index - 1
+	afterimage.modulate = dash_trail_start_color
+
+	parent_node.add_child(afterimage)
+	afterimage.global_position = sprite.global_position
+	afterimage.global_rotation = sprite.global_rotation
+	afterimage.global_scale = sprite.global_scale
+
+	var tween := afterimage.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(afterimage, "modulate:a", 0.0, dash_trail_lifetime)
+	tween.tween_property(afterimage, "scale", afterimage.scale * dash_trail_end_scale_multiplier, dash_trail_lifetime)
+	tween.chain().tween_callback(afterimage.queue_free)
+
+
 func _try_start_dash(movement_direction: Vector2) -> void:
 	if _is_dashing():
 		return
@@ -745,6 +912,7 @@ func _try_start_dash(movement_direction: Vector2) -> void:
 	_dash_direction = movement_direction.normalized()
 	_dash_time_left = dash_duration
 	_dash_cooldown_left = dash_cooldown
+	_dash_trail_spawn_left = 0.0
 	_shoot_lock_left = dash_duration + after_dash_shoot_lock
 	_set_invulnerable(dash_duration + after_dash_invulnerability)
 

@@ -1,0 +1,26 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/projectiles/enemy/sleepy_joe_bullet.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/projectiles/enemy/sleepy_joe/ice_cream_large_shot.png" id="2_texture"]
+[ext_resource type="PackedScene" path="res://scenes/projectiles/enemy/sleepy_joe/ice_cream_split_projectile.tscn" id="3_split"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_large"]
+radius = 64.0
+
+[node name="IceCreamLargeProjectile" type="Area2D"]
+collision_layer = 4
+script = ExtResource("1_script")
+radius = 64.0
+color = Color(1, 0.52, 0.16, 1)
+texture_path = "res://assets/projectiles/enemy/sleepy_joe/ice_cream_large_shot.png"
+split_projectile_scene = ExtResource("3_split")
+impact_shake_duration = 0.5
+impact_shake_strength = 25.0
+impact_knockback_force = 850.0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = ExtResource("2_texture")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_large")

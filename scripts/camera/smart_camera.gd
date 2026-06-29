@@ -9,18 +9,21 @@ extends Camera2D
 @export var cursor_full_offset_radius: float = 460.0
 @export var cursor_lookahead_speed: float = 11.0
 @export var room_padding: Vector2 = Vector2(40.0, 40.0)
+@export var zoom_adjust_speed: float = 7.0
 
 var _target: Node2D = null
 var _movement_offset: Vector2 = Vector2.ZERO
 var _cursor_offset: Vector2 = Vector2.ZERO
 var _shake_offset: Vector2 = Vector2.ZERO
 var _follow_position: Vector2 = Vector2.ZERO
+var _default_zoom: Vector2 = Vector2.ONE
 
 
 func _ready() -> void:
 	process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	position_smoothing_enabled = false
 	rotation_smoothing_enabled = false
+	_default_zoom = zoom
 	make_current()
 	_find_target()
 
@@ -36,9 +39,10 @@ func _physics_process(delta: float) -> void:
 	if _target == null:
 		return
 
+	_update_zoom(delta)
 	_update_offsets(delta)
 
-	var target_position := _target.global_position + _movement_offset + _cursor_offset
+	var target_position := _get_follow_target_position() + _movement_offset + _cursor_offset
 	target_position = _clamp_to_current_room(target_position)
 
 	var follow_weight := 1.0 - exp(-follow_speed * delta)
@@ -61,7 +65,7 @@ func snap_to_target() -> void:
 
 	_movement_offset = Vector2.ZERO
 	_cursor_offset = Vector2.ZERO
-	_follow_position = _clamp_to_current_room(_target.global_position)
+	_follow_position = _clamp_to_current_room(_get_follow_target_position())
 	global_position = _follow_position
 	offset = _shake_offset
 
@@ -97,6 +101,68 @@ func _update_offsets(delta: float) -> void:
 
 	var cursor_weight := 1.0 - exp(-cursor_lookahead_speed * delta)
 	_cursor_offset = _cursor_offset.lerp(desired_cursor_offset, cursor_weight)
+
+
+func _update_zoom(delta: float) -> void:
+	var desired_zoom := _default_zoom
+	var arena := _get_current_arena()
+
+	if arena != null and bool(arena.get("distance_zoom_enabled")):
+		desired_zoom = _get_distance_zoom(arena)
+
+	var zoom_weight := 1.0 - exp(-zoom_adjust_speed * delta)
+	zoom = zoom.lerp(desired_zoom, zoom_weight)
+
+
+func _get_follow_target_position() -> Vector2:
+	var arena := _get_current_arena()
+
+	if arena == null or not bool(arena.get("boss_bias_camera_enabled")):
+		return _target.global_position
+
+	var bias_target := _get_camera_target_from_group(arena.get("boss_bias_target_group"))
+
+	if bias_target == null:
+		return _target.global_position
+
+	var distance := _target.global_position.distance_to(bias_target.global_position)
+	var near_distance := float(arena.get("boss_bias_near_distance"))
+	var far_distance := float(arena.get("boss_bias_far_distance"))
+	var near_bias := float(arena.get("boss_bias_near_amount"))
+	var far_bias := float(arena.get("boss_bias_far_amount"))
+	var bias_t := clampf(inverse_lerp(near_distance, far_distance, distance), 0.0, 1.0)
+	var boss_bias := lerpf(near_bias, far_bias, bias_t)
+
+	return _target.global_position.lerp(bias_target.global_position, boss_bias)
+
+
+func _get_distance_zoom(arena: Node2D) -> Vector2:
+	var zoom_target := _get_camera_target_from_group(arena.get("distance_zoom_target_group"))
+
+	if zoom_target == null:
+		return _default_zoom
+
+	var distance := _target.global_position.distance_to(zoom_target.global_position)
+	var near_distance := float(arena.get("distance_zoom_near_distance"))
+	var far_distance := float(arena.get("distance_zoom_far_distance"))
+	var near_zoom: Vector2 = arena.get("distance_zoom_near_zoom")
+	var far_zoom: Vector2 = arena.get("distance_zoom_far_zoom")
+	var distance_t := inverse_lerp(near_distance, far_distance, distance)
+	distance_t = clampf(distance_t, 0.0, 1.0)
+
+	return near_zoom.lerp(far_zoom, distance_t)
+
+
+func _get_camera_target_from_group(target_group: StringName) -> Node2D:
+	for node in get_tree().get_nodes_in_group(target_group):
+		if node is BaseBoss and is_instance_valid(node) and not (node as BaseBoss).defeated:
+			return node as Node2D
+
+	for node in get_tree().get_nodes_in_group(target_group):
+		if node is Node2D and is_instance_valid(node):
+			return node as Node2D
+
+	return null
 
 
 func _clamp_to_current_room(camera_position: Vector2) -> Vector2:

@@ -8,9 +8,11 @@ extends Control
 @onready var agent_a_bar: ProgressBar = $MarginContainer/VBoxContainer/MiniBossBars/AgentARow/Bar
 @onready var agent_b_bar: ProgressBar = $MarginContainer/VBoxContainer/MiniBossBars/AgentBRow/Bar
 @onready var phase_label: Label = $MarginContainer/VBoxContainer/PhaseLabel
+@onready var attack_debug_label: Label = $AttackDebugLabel
 
 var _agent_bars: Dictionary = {}
 var _mini_boss_bind_attempts: int = 0
+var _current_attack_controller: BossAttackController = null
 
 
 func _ready() -> void:
@@ -37,10 +39,13 @@ func _on_boss_spawned(boss: BaseBoss) -> void:
 	hp_bar.value = boss.current_hp
 
 	phase_label.text = "Phase " + str(boss.current_phase)
+	_set_attack_debug_text("")
 	_reset_mini_boss_bars()
 
 	if boss.has_signal("boss_damaged"):
 		boss.boss_damaged.connect(_on_boss_damaged)
+
+	_bind_attack_debug(boss)
 
 
 func _on_boss_damaged(current_hp: float) -> void:
@@ -60,6 +65,8 @@ func _on_phase_changed(new_phase: int) -> void:
 func _on_boss_defeated(_boss) -> void:
 
 	_reset_mini_boss_bars()
+	_unbind_attack_debug()
+	_set_attack_debug_text("")
 	hide()
 
 
@@ -143,3 +150,39 @@ func _set_agent_row_visible(agent_name: String, is_visible: bool) -> void:
 		"Agent B":
 			agent_b_row.visible = is_visible
 			agent_b_bar.visible = is_visible
+
+
+func _bind_attack_debug(boss: BaseBoss) -> void:
+	_unbind_attack_debug()
+
+	_current_attack_controller = boss.get_node_or_null("AttackController") as BossAttackController
+
+	if _current_attack_controller == null:
+		return
+
+	if not _current_attack_controller.current_attack_changed.is_connected(_on_current_attack_changed):
+		_current_attack_controller.current_attack_changed.connect(_on_current_attack_changed)
+
+	_set_attack_debug_text(_current_attack_controller.current_attack_name)
+
+
+func _unbind_attack_debug() -> void:
+	if _current_attack_controller == null:
+		return
+
+	if _current_attack_controller.current_attack_changed.is_connected(_on_current_attack_changed):
+		_current_attack_controller.current_attack_changed.disconnect(_on_current_attack_changed)
+
+	_current_attack_controller = null
+
+
+func _on_current_attack_changed(attack_name: String) -> void:
+	_set_attack_debug_text(attack_name)
+
+
+func _set_attack_debug_text(attack_name: String) -> void:
+	if attack_debug_label == null:
+		return
+
+	attack_debug_label.visible = not attack_name.is_empty()
+	attack_debug_label.text = "Attack: " + attack_name if not attack_name.is_empty() else ""

@@ -11,6 +11,20 @@ const AMMO_PICKUP_SCENE: PackedScene = preload("res://scenes/items/ammo_pickup.t
 @export var arena_color: Color = Color(0.42, 0.45, 0.43, 1.0) : set = _set_arena_color
 @export var wall_color: Color = Color(0.25, 0.72, 0.55, 1.0) : set = _set_wall_color
 @export var wall_thickness: float = 80.0 : set = _set_wall_thickness
+@export var use_circular_boundary: bool = false : set = _set_use_circular_boundary
+@export var circular_boundary_segments: int = 32 : set = _set_circular_boundary_segments
+@export var distance_zoom_enabled: bool = false
+@export var distance_zoom_target_group: StringName = &"enemy"
+@export var distance_zoom_near_distance: float = 520.0
+@export var distance_zoom_far_distance: float = 900.0
+@export var distance_zoom_near_zoom: Vector2 = Vector2(0.75, 0.75)
+@export var distance_zoom_far_zoom: Vector2 = Vector2(0.58, 0.58)
+@export var boss_bias_camera_enabled: bool = false
+@export var boss_bias_target_group: StringName = &"enemy"
+@export var boss_bias_near_distance: float = 250.0
+@export var boss_bias_far_distance: float = 700.0
+@export var boss_bias_near_amount: float = 0.15
+@export var boss_bias_far_amount: float = 0.4
 @export var spawn_debug_pickups: bool = true
 @export var spawn_debug_minion: bool = true
 
@@ -42,6 +56,16 @@ func _set_wall_color(value: Color) -> void:
 
 func _set_wall_thickness(value: float) -> void:
 	wall_thickness = value
+	_apply_arena()
+
+
+func _set_use_circular_boundary(value: bool) -> void:
+	use_circular_boundary = value
+	_apply_arena()
+
+
+func _set_circular_boundary_segments(value: int) -> void:
+	circular_boundary_segments = maxi(value, 8)
 	_apply_arena()
 
 
@@ -159,6 +183,10 @@ func _apply_background() -> void:
 
 
 func _apply_walls() -> void:
+	if use_circular_boundary:
+		_apply_circular_walls()
+		return
+
 	var half_size := arena_size * 0.5
 
 	_configure_wall("WallTop", Vector2(0.0, -half_size.y), Vector2(arena_size.x, wall_thickness))
@@ -167,9 +195,46 @@ func _apply_walls() -> void:
 	_configure_wall("WallRight", Vector2(half_size.x, 0.0), Vector2(wall_thickness, arena_size.y))
 
 
-func _configure_wall(wall_name: String, wall_position: Vector2, wall_size: Vector2) -> void:
+func _apply_circular_walls() -> void:
+	var segment_count := maxi(circular_boundary_segments, 8)
+	var radius := minf(arena_size.x, arena_size.y) * 0.5
+	var segment_length := TAU * radius / float(segment_count) * 1.08
+	var segment_size := Vector2(segment_length, wall_thickness)
+
+	for i in range(segment_count):
+		var angle := TAU * float(i) / float(segment_count)
+		var wall_name := _get_circular_wall_name(i)
+		_configure_wall(
+			wall_name,
+			Vector2.RIGHT.rotated(angle) * radius,
+			segment_size,
+			angle + PI * 0.5
+		)
+
+
+func _get_circular_wall_name(index: int) -> String:
+	match index:
+		0:
+			return "WallTop"
+		1:
+			return "WallBottom"
+		2:
+			return "WallLeft"
+		3:
+			return "WallRight"
+
+	return "CircleWall%02d" % index
+
+
+func _configure_wall(
+	wall_name: String,
+	wall_position: Vector2,
+	wall_size: Vector2,
+	wall_rotation: float = 0.0
+) -> void:
 	var wall := _ensure_wall(wall_name)
 
 	wall.position = wall_position
+	wall.rotation = wall_rotation
 	wall.set("wall_size", wall_size)
 	wall.set("wall_color", wall_color)

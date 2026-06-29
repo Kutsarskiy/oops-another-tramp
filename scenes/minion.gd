@@ -11,9 +11,18 @@ const WALL_COLLISION_LAYER_BIT: int = 0
 @export var max_hp: int = 3
 @export var global_stun_damage_multiplier: float = 2.0
 @export var global_stun_tint: Color = Color(1.0, 0.58, 0.58, 1.0)
+@export var spawn_intro_enabled: bool = true
+@export var spawn_intro_duration: float = 0.55
+@export var spawn_intro_fall_height: float = 210.0
+@export var spawn_intro_start_rotation_degrees: float = -12.0
+@export var spawn_intro_shadow_offset: Vector2 = Vector2(0.0, 48.0)
+@export var spawn_intro_shadow_color: Color = Color(0.0, 0.0, 0.0, 0.28)
+@export var mirror_collision_with_visual: bool = true
 
 @onready var sprite: Sprite2D = get_node_or_null("Sprite2D") as Sprite2D
+@onready var collision_shape: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
 @onready var hurtbox: Area2D = get_node_or_null("Hurtbox") as Area2D
+@onready var hurtbox_collision_shape: CollisionShape2D = get_node_or_null("Hurtbox/CollisionShape2D") as CollisionShape2D
 
 var hp: int
 var _shoot_cd: float = 0.0
@@ -21,6 +30,14 @@ var _player: Node2D = null
 var BulletScene: PackedScene = preload("res://scenes/bullet.tscn")
 var _global_stun_left: float = 0.0
 var _base_stun_modulate: Color = Color.WHITE
+var _spawn_intro_active: bool = false
+var _spawn_intro_shadow: Sprite2D = null
+var _base_collision_layer: int = 0
+var _base_collision_mask: int = 0
+var _base_hurtbox_monitoring: bool = false
+var _base_hurtbox_monitorable: bool = false
+var _base_collision_shape_position: Vector2 = Vector2.ZERO
+var _base_hurtbox_collision_shape_position: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -30,8 +47,14 @@ func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	collision_layer = 1 << ENEMY_LAYER_BIT
 	collision_mask = (1 << WALL_COLLISION_LAYER_BIT) | (1 << PLAYER_BODY_LAYER_BIT)
+	_base_collision_layer = collision_layer
+	_base_collision_mask = collision_mask
 
 	_configure_hurtbox()
+	if collision_shape != null:
+		_base_collision_shape_position = collision_shape.position
+	if hurtbox_collision_shape != null:
+		_base_hurtbox_collision_shape_position = hurtbox_collision_shape.position
 	_ensure_temp_texture()
 	if sprite != null:
 		_base_stun_modulate = sprite.modulate
@@ -39,8 +62,16 @@ func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player") as Node2D
 	_shoot_cd = start_shoot_delay
 
+	if spawn_intro_enabled:
+		call_deferred("play_spawn_intro")
+
 
 func _physics_process(delta: float) -> void:
+	if _spawn_intro_active:
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
+
 	if _update_global_stun(delta):
 		velocity = Vector2.ZERO
 		move_and_slide()
@@ -56,6 +87,7 @@ func _physics_process(delta: float) -> void:
 
 	if sprite != null and absf(direction.x) > 0.001:
 		sprite.flip_h = direction.x < 0.0
+		_sync_collision_mirroring()
 
 	var move_direction := Vector2.ZERO
 
@@ -88,7 +120,23 @@ func _shoot(direction: Vector2) -> void:
 	get_parent().add_child(bullet)
 
 
+func _sync_collision_mirroring() -> void:
+	var mirror_sign := -1.0 if mirror_collision_with_visual and sprite != null and sprite.flip_h else 1.0
+
+	if collision_shape != null:
+		collision_shape.position = Vector2(_base_collision_shape_position.x * mirror_sign, _base_collision_shape_position.y)
+
+	if hurtbox_collision_shape != null:
+		hurtbox_collision_shape.position = Vector2(
+			_base_hurtbox_collision_shape_position.x * mirror_sign,
+			_base_hurtbox_collision_shape_position.y
+		)
+
+
 func take_damage(amount: int) -> void:
+	if _spawn_intro_active:
+		return
+
 	hp -= ceili(_get_global_stun_modified_damage(amount))
 
 	if hp <= 0:
@@ -106,6 +154,8 @@ func _configure_hurtbox() -> void:
 	hurtbox.set_deferred("monitorable", true)
 	hurtbox.collision_layer = 1 << ENEMY_LAYER_BIT
 	hurtbox.collision_mask = 0
+	_base_hurtbox_monitoring = true
+	_base_hurtbox_monitorable = true
 
 
 func _ensure_temp_texture() -> void:
@@ -133,6 +183,105 @@ func _ensure_temp_texture() -> void:
 	image.fill_rect(Rect2i(24, 58, 24, 8), Color(0.28, 0.08, 0.10, 1.0))
 
 	sprite.texture = ImageTexture.create_from_image(image)
+
+
+func play_spawn_intro() -> void:
+	if sprite == null:
+		return
+
+	_spawn_intro_active = true
+	_disable_spawn_intro_collision()
+	_ensure_spawn_intro_shadow()
+
+	var base_position := sprite.position
+	var base_scale := sprite.scale
+	var base_modulate := _base_stun_modulate
+	var duration := maxf(spawn_intro_duration, 0.01)
+
+	sprite.position = base_position + Vector2.UP * spawn_intro_fall_height
+	sprite.rotation_degrees = spawn_intro_start_rotation_degrees
+	sprite.scale = base_scale * 0.84
+	sprite.modulate = Color(base_modulate.r, base_modulate.g, base_modulate.b, 0.0)
+
+	if _spawn_intro_shadow != null:
+		_spawn_intro_shadow.visible = true
+		_spawn_intro_shadow.texture = sprite.texture
+		_spawn_intro_shadow.flip_h = sprite.flip_h
+		_spawn_intro_shadow.flip_v = sprite.flip_v
+		_spawn_intro_shadow.position = base_position + spawn_intro_shadow_offset
+		_spawn_intro_shadow.scale = base_scale * 0.48
+		_spawn_intro_shadow.modulate = Color(
+			spawn_intro_shadow_color.r,
+			spawn_intro_shadow_color.g,
+			spawn_intro_shadow_color.b,
+			0.0
+		)
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(sprite, "position", base_position, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(sprite, "rotation_degrees", 0.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(sprite, "modulate:a", base_modulate.a, duration * 0.35)
+
+	if _spawn_intro_shadow != null:
+		tween.tween_property(_spawn_intro_shadow, "scale", base_scale, duration).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(_spawn_intro_shadow, "modulate:a", spawn_intro_shadow_color.a, duration * 0.45)
+
+	tween.chain()
+	tween.tween_property(sprite, "scale", base_scale * Vector2(1.12, 0.88), 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(sprite, "scale", base_scale, 0.11).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(_finish_spawn_intro)
+
+
+func _ensure_spawn_intro_shadow() -> void:
+	if _spawn_intro_shadow != null:
+		return
+
+	_spawn_intro_shadow = Sprite2D.new()
+	_spawn_intro_shadow.name = "SpawnIntroShadow"
+	_spawn_intro_shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_spawn_intro_shadow.centered = sprite.centered
+	_spawn_intro_shadow.offset = sprite.offset
+	_spawn_intro_shadow.z_index = sprite.z_index - 1
+	_spawn_intro_shadow.visible = false
+	add_child(_spawn_intro_shadow)
+
+
+func _disable_spawn_intro_collision() -> void:
+	collision_layer = 0
+	collision_mask = 0
+
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", true)
+
+	if hurtbox != null:
+		hurtbox.set_deferred("monitoring", false)
+		hurtbox.set_deferred("monitorable", false)
+
+	if hurtbox_collision_shape != null:
+		hurtbox_collision_shape.set_deferred("disabled", true)
+
+
+func _finish_spawn_intro() -> void:
+	_spawn_intro_active = false
+	collision_layer = _base_collision_layer
+	collision_mask = _base_collision_mask
+	sprite.modulate = _base_stun_modulate
+
+	if collision_shape != null:
+		collision_shape.set_deferred("disabled", false)
+
+	if hurtbox != null:
+		hurtbox.set_deferred("monitoring", _base_hurtbox_monitoring)
+		hurtbox.set_deferred("monitorable", _base_hurtbox_monitorable)
+
+	if hurtbox_collision_shape != null:
+		hurtbox_collision_shape.set_deferred("disabled", false)
+
+	if _spawn_intro_shadow != null:
+		var shadow_tween := _spawn_intro_shadow.create_tween()
+		shadow_tween.tween_property(_spawn_intro_shadow, "modulate:a", 0.0, 0.12)
+		shadow_tween.tween_callback(_spawn_intro_shadow.hide)
 
 
 func apply_global_stun(duration: float) -> void:

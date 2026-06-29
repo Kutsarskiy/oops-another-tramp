@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cf1pjhdre8qxw" path="res://scenes/player.gd" id="1_uwrxv"]
 [ext_resource type="Script" uid="uid://buwab80k2b1uu" path="res://scripts/weapons/weapon_controller.gd" id="2_lbhrr"]
-[ext_resource type="Texture2D" uid="uid://ku6amf6f0hqs" path="res://assets/characters/player/donni/donni_right_idle.png" id="3_donni_idle"]
+[ext_resource type="Texture2D" uid="uid://dvdnsfkng0tvc" path="res://assets/characters/player/donni/weapons/the_negotiator/idle_right.png" id="3_donni_idle"]
 [ext_resource type="Script" uid="uid://dhcfmosatkft4" path="res://scripts/ui/weapon_hud.gd" id="5_iywne"]
 [ext_resource type="Script" uid="uid://8jvcovjqcbga" path="res://scripts/ui/pickup_hint_hud.gd" id="6_p57ef"]
 [ext_resource type="Script" uid="uid://cjck01aatw0wo" path="res://scripts/ui/action_message_hud.gd" id="7_0tnpc"]
@@ -11,14 +11,17 @@
 [ext_resource type="Script" uid="uid://cqirn4wvll3q1" path="res://scripts/managers/arena_loader.gd" id="12_arena"]
 [ext_resource type="Script" uid="uid://cyxm8wlalmnsr" path="res://scripts/camera/smart_camera.gd" id="13_camera"]
 [ext_resource type="Script" uid="uid://cmik2svx5e7il" path="res://scripts/ui/fps_counter.gd" id="14_fps"]
+[ext_resource type="Script" uid="uid://csmdhgsvy56tp" path="res://scripts/ui/combat_cursor.gd" id="15_cursor"]
+[ext_resource type="Script" uid="uid://c6eov65ch8apk" path="res://scripts/ui/debug_invincibility_hud.gd" id="16_invincible"]
+[ext_resource type="Script" path="res://scripts/ui/boss_offscreen_indicator.gd" id="17_boss_indicator"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_player_body"]
 radius = 18.0
 height = 68.0
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_gee14"]
-radius = 24.0
-height = 76.0
+radius = 18.0
+height = 68.0
 
 [node name="Game" type="Node2D" unique_id=348633524]
 script = ExtResource("12_arena")
@@ -40,6 +43,7 @@ texture_filter = 1
 texture = ExtResource("3_donni_idle")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=90433180]
+position = Vector2(-16, 4)
 shape = SubResource("CapsuleShape2D_player_body")
 
 [node name="Muzzle" type="Marker2D" parent="Player" unique_id=1660981308]
@@ -53,6 +57,7 @@ collision_layer = 16
 collision_mask = 0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player/Hurtbox" unique_id=933943466]
+position = Vector2(-16, 4)
 shape = SubResource("CapsuleShape2D_gee14")
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=60715672]
@@ -101,3 +106,42 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 2
 script = ExtResource("14_fps")
+
+[node name="DebugInvincibilityHUD" type="Label" parent="UI" unique_id=74550951]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -150.0
+offset_top = 32.0
+offset_right = -8.0
+offset_bottom = 58.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.22, 0.16, 0.95)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.75)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 2
+script = ExtResource("16_invincible")
+
+[node name="CombatCursor" type="Control" parent="UI" unique_id=210317790]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("15_cursor")
+
+[node name="BossOffscreenIndicator" type="Control" parent="UI"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("17_boss_indicator")

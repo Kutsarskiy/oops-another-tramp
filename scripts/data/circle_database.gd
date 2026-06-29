@@ -18,11 +18,11 @@ static func get_circle_data(circle_id: int) -> Dictionary:
 			"boss_id": "sleepy_joe",
 			"arena_scene": preload("res://scenes/arenas/arena_01_sleepy_joe.tscn"),
 			"boss_scene": null,
-			"arena_color": Color(0.42, 0.45, 0.43),
-			"arena_size": Vector2(2160, 2160),
-			"boss_spawn_position": Vector2(0, 0),
-			"reward_spawn_position": Vector2(0, 160),
-			"exit_spawn_position": Vector2(0, -760)
+			"arena_color": Color(0.31, 0.34, 0.33),
+			"arena_size": Vector2(1400, 1400),
+			"boss_spawn_position": Vector2(0, -345),
+			"reward_spawn_position": Vector2(0, 180),
+			"exit_spawn_position": Vector2(0, 560)
 		},
 
 		2: {
